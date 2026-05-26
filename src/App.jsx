@@ -256,14 +256,20 @@ function Layout({ session }) {
   const [proyectoId, setProyectoId] = useState(() => localStorage.getItem('cpt_proyecto_id') || '')
   const [modalNuevo, setModalNuevo] = useState(false)
   const [saving, setSaving]         = useState(false)
+  const [errorProyecto, setErrorProyecto] = useState('')
   const [formP, setFormP] = useState({ nombre:'', cliente:'', descripcion:'', fecha_inicio:'', fecha_fin_est:'' })
 
   const cargarProyectos = async () => {
-    const { data } = await supabase.from('cpt_proyectos').select('id,nombre,cliente').eq('estado','activo').order('created_at',{ascending:false})
-    setProyectos(data || [])
-    if (!proyectoId && data?.length === 1) {
-      setProyectoId(data[0].id)
-      localStorage.setItem('cpt_proyecto_id', data[0].id)
+    try {
+      const { data, error } = await supabase.from('cpt_proyectos').select('id,nombre,cliente').eq('estado','activo').order('created_at',{ascending:false})
+      if (error) throw error
+      setProyectos(data || [])
+      if (!proyectoId && data?.length === 1) {
+        setProyectoId(data[0].id)
+        localStorage.setItem('cpt_proyecto_id', data[0].id)
+      }
+    } catch {
+      // no bloquea la UI, proyectos queda vacío con mensaje en selector
     }
   }
 
@@ -275,14 +281,20 @@ function Layout({ session }) {
   }
 
   const handleNuevoProyecto = async (e) => {
-    e.preventDefault(); setSaving(true)
+    e.preventDefault(); setSaving(true); setErrorProyecto('')
     try {
-      const { data, error } = await supabase.from('cpt_proyectos').insert({ ...formP, estado:'activo', moneda_base:'USD' }).select('id').single()
-      if (error) { alert(error.message); return }
+      const { data, error } = await supabase
+        .from('cpt_proyectos')
+        .insert({ ...formP, estado:'activo', moneda_base:'USD', created_by: session.user.id })
+        .select('id')
+        .single()
+      if (error) { setErrorProyecto('No se pudo crear el proyecto. Verificá tu conexión e intentá nuevamente.'); return }
       setModalNuevo(false)
       setFormP({ nombre:'', cliente:'', descripcion:'', fecha_inicio:'', fecha_fin_est:'' })
       await cargarProyectos()
       handleProyecto(data.id)
+    } catch {
+      setErrorProyecto('Error de conexión. Intentá nuevamente.')
     } finally { setSaving(false) }
   }
 
@@ -334,6 +346,7 @@ function Layout({ session }) {
           <div className="modal">
             <h3>Nuevo Proyecto</h3>
             <form onSubmit={handleNuevoProyecto}>
+              {errorProyecto && <div className="alert alert-err" style={{marginBottom:12}}>{errorProyecto}</div>}
               <div className="form-row"><label>Nombre del proyecto *</label><input required value={formP.nombre} onChange={e => setFormP(f=>({...f,nombre:e.target.value}))} placeholder="ej. FUGRO – Fabricación Equipos" /></div>
               <div className="form-row"><label>Cliente *</label><input required value={formP.cliente} onChange={e => setFormP(f=>({...f,cliente:e.target.value}))} placeholder="ej. Fugro" /></div>
               <div className="form-row"><label>Descripción</label><textarea value={formP.descripcion} onChange={e => setFormP(f=>({...f,descripcion:e.target.value}))} placeholder="Descripción breve del proyecto..." /></div>
@@ -426,6 +439,7 @@ function Presupuesto() {
   const [loading, setLoading]       = useState(true)
   const [modal, setModal]           = useState(false)
   const [saving, setSaving]         = useState(false)
+  const [filtroCat, setFiltroCat]   = useState('')
   const [form, setForm] = useState({ item_numero:'', descripcion:'', categoria_id:'', frecuencia:'one-time', moneda_pres:'USD', monto_pres:'', fx_pres:'', es_reembolsable:false, handling_fee_pct:'', estado:'estimado' })
 
   const cargar = async () => {
@@ -451,6 +465,7 @@ function Presupuesto() {
 
   const totalPres = lineas.reduce((s,l) => s+(l.monto_pres_usd||0),0)
   const totalReal = lineas.reduce((s,l) => s+(l.monto_real_usd||0),0)
+  const lineasFiltradas = filtroCat ? lineas.filter(l => l.categoria_id === filtroCat) : lineas
 
   if (loading) return <div className="loading">Cargando presupuesto...</div>
 
@@ -460,7 +475,7 @@ function Presupuesto() {
         <div className="card-hdr">
           <span className="card-title">Líneas de Costo — Presupuesto vs Real</span>
           <div style={{display:'flex',gap:8}}>
-            <select style={{width:180}}><option value="">Todas las categorías</option>{categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select>
+            <select style={{width:180}} value={filtroCat} onChange={e => setFiltroCat(e.target.value)}><option value="">Todas las categorías</option>{categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}</select>
             <button className="btn" onClick={() => setModal(true)}>+ Nueva línea</button>
           </div>
         </div>
@@ -468,8 +483,8 @@ function Presupuesto() {
           <table>
             <thead><tr><th>Item</th><th>Descripción</th><th>Categoría</th><th>Frec.</th><th>Moneda</th><th>Pres. USD</th><th>Real USD</th><th>Delta</th><th>Remb.</th><th>Estado</th></tr></thead>
             <tbody>
-              {lineas.length===0 && <tr><td colSpan={10} className="empty">Sin líneas — agregá la primera</td></tr>}
-              {lineas.map(l => {
+              {lineasFiltradas.length===0 && <tr><td colSpan={10} className="empty">Sin líneas — agregá la primera</td></tr>}
+              {lineasFiltradas.map(l => {
                 const delta = l.monto_real_usd!=null ? l.monto_real_usd-(l.monto_pres_usd||0) : null
                 return (
                   <tr key={l.id} style={l.estado==='alerta'?{background:'#FEF2F2'}:{}}>
@@ -999,8 +1014,13 @@ function Categorias() {
   }
 
   const toggleActiva = async (cat) => {
-    await supabase.from('cpt_categorias').update({ activa:!cat.activa }).eq('id',cat.id)
-    await cargar()
+    try {
+      const { error } = await supabase.from('cpt_categorias').update({ activa:!cat.activa }).eq('id',cat.id)
+      if (error) { alert('No se pudo actualizar la categoría. Intentá nuevamente.'); return }
+      await cargar()
+    } catch {
+      alert('Error de conexión. Intentá nuevamente.')
+    }
   }
 
   if (loading) return <div className="loading">Cargando categorías...</div>
@@ -1028,7 +1048,7 @@ function Categorias() {
               </tbody>
             </table>
           </div>
-          <div class="tbl-foot" style={{fontSize:11,color:'var(--muted)'}}>
+          <div className="tbl-foot" style={{fontSize:11,color:'var(--muted)'}}>
             Categorías globales. Desactivar oculta del selector sin borrar datos existentes.
           </div>
         </div>
