@@ -619,17 +619,15 @@ function TabPresupuesto({ proyecto }) {
                         </td>
                       )
                     })}
-                    <td className="mono"><strong>{fmtUSD(costoTotal)}</strong></td>
-                    <td className={`mono ${margenUSD >= 0 ? 'cg' : 'cr'}`}><strong>{fmtUSD(margenUSD)}</strong></td>
-                    <td>
-                      {cm != null && (
-                        <span style={{
-                          display:'inline-block', padding:'2px 8px', borderRadius:6,
-                          fontWeight:700, fontSize:12,
-                          background: Number(cm)>=30?'#D1FAE5':Number(cm)>=15?'#FEF3C7':'#FEE2E2',
-                          color: Number(cm)>=30?'#065F46':Number(cm)>=15?'#92400E':'#991B1B'
-                        }}>{cm}%</span>
-                      )}
+                    <td className="mono" style={{fontSize:11}}>
+                      {costoPresTotal>0&&<div style={{color:'var(--blue)'}}>{fmtUSD(item.precio_cliente-costoPresTotal)}</div>}
+                      {costoRealTotal>0&&<div style={{color:'#059669',fontWeight:700}}>{fmtUSD(item.precio_cliente-costoRealTotal)}</div>}
+                      {costoPresTotal>0&&costoRealTotal>0&&(()=>{const d=(item.precio_cliente-costoRealTotal)-(item.precio_cliente-costoPresTotal);return <div style={{fontWeight:700,color:d>=0?'#059669':'#DC2626'}}>{d>=0?'+':''}{fmtUSD(d)}</div>})()}
+                    </td>
+                    <td style={{fontSize:11}}>
+                      {costoPresTotal>0&&item.precio_cliente>0&&<div style={{color:'var(--blue)',fontWeight:600}}>{(((item.precio_cliente||0)-costoPresTotal)/item.precio_cliente*100).toFixed(1)}%</div>}
+                      {costoRealTotal>0&&item.precio_cliente>0&&(()=>{const cmR=(((item.precio_cliente||0)-costoRealTotal)/item.precio_cliente*100);return <div style={{fontWeight:800,color:cmR>=30?'#059669':cmR>=15?'#D97706':'#DC2626'}}>{cmR.toFixed(1)}%</div>})()}
+                      {costoPresTotal>0&&costoRealTotal>0&&item.precio_cliente>0&&(()=>{const d=((item.precio_cliente-costoRealTotal)-(item.precio_cliente-costoPresTotal))/item.precio_cliente*100;return <div style={{fontWeight:700,color:d>=0?'#059669':'#DC2626'}}>{d>=0?'+':''}{d.toFixed(1)}pp</div>})()}
                     </td>
                     <td>
                       <div style={{display:'flex',gap:4}}>
