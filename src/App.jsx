@@ -1120,8 +1120,13 @@ function SubTabOC({ proyecto }) {
                   </td>
                   <td className={`mono ${(o.saldo_usd||0)>0?'cw':'cg'}`}>{fmtUSD(o.saldo_usd)}</td>
                   <td className="mono cg">{fmtUSD(o.alocado_usd)}</td>
-                  <td className={`mono ${(o.sin_alocar||0)>0.01?'cw':'cg'}`}>
-                    {(o.sin_alocar||0)>0.01 ? fmtUSD(o.sin_alocar) : <span style={{color:'#059669'}}>✓</span>}
+                  <td className={`mono ${(o.total_alocar_usd-o.alocado_usd)>0.01?'cw':'cg'}`}>
+                    {(o.total_alocar_usd-o.alocado_usd)>0.01
+                      ? <div>
+                          <div>{fmtUSD(o.total_alocar_usd-o.alocado_usd)}</div>
+                          <div style={{fontSize:10,color:'var(--muted)'}}>de {fmtUSD(o.total_alocar_usd)}</div>
+                        </div>
+                      : <span style={{color:'#059669'}}>✓</span>}
                   </td>
                   <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(o.fecha_emision)}</td>
                   <td><span className={`chip ${CHIP[o.estado]||'c-no'}`}>{safeReplace(o.estado)}</span></td>
