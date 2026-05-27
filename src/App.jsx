@@ -142,7 +142,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 .hdr-name{font-size:12px;font-weight:800;color:#fff;letter-spacing:2px;text-transform:uppercase}
 .hdr-sub{font-size:9px;color:var(--gold);letter-spacing:1px;font-family:var(--mono);text-transform:uppercase}
 .hdr-right{display:flex;align-items:center;gap:10px}
-.hdr-sel{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;width:220px;font-family:var(--sans)}
+.hdr-sel{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;width:220px;font-family:var(--sans)}.hdr-sel option{background:#0B1629;color:#fff}
 .hdr-btn{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.55);font-family:var(--sans);font-size:10px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer;letter-spacing:.3px}
 .hdr-btn:hover{border-color:rgba(255,255,255,.35);color:#fff}
 .hdr-btn-gold{background:var(--gold);color:var(--navy);border:none;font-family:var(--sans);font-size:10px;font-weight:700;padding:5px 12px;border-radius:6px;cursor:pointer;letter-spacing:.3px}
