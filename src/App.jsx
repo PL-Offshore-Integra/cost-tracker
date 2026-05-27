@@ -374,54 +374,65 @@ const CATS = ['material', 'mano_obra', 'instalacion', 'consumibles']
 const CATS_LABEL = { material: 'Material', mano_obra: 'Mano de Obra', instalacion: 'Instalación', consumibles: 'Consumibles' }
 
 function ModalEditarItem({ item, onClose, onSave }) {
+  const emptyC = () => ({ moneda:'USD', monto:'', fx:'' })
+  const initCostos = (costos, tipo) => {
+    const result = {}
+    for (const cat of CATS) {
+      const c = costos?.[cat]?.[tipo] || {}
+      result[cat] = { moneda: c.moneda||'USD', monto: c.monto||'', fx: c.fx||'' }
+    }
+    return result
+  }
+
   const [form, setForm] = useState({
     descripcion: item?.descripcion || '',
     precio_cliente: item?.precio_cliente || '',
-    costos: item?.costos || {}
+    pres: initCostos(item?.costos, 'pres'),
+    real: initCostos(item?.costos, 'real'),
   })
   const [saving, setSaving] = useState(false)
 
-  const setCosto = (cat, field, val) => {
-    setForm(f => ({ ...f, costos: { ...f.costos, [cat]: { ...(f.costos[cat]||{}), [field]: val } } }))
+  const setC = (tipo, cat, field, val) => {
+    setForm(f => ({ ...f, [tipo]: { ...f[tipo], [cat]: { ...f[tipo][cat], [field]: val } } }))
   }
 
-  const getCostoUSD = (cat) => {
-    const c = form.costos[cat]
-    if (!c || !c.monto) return null
-    if (c.moneda === 'ARS' && c.fx) return Number(c.monto) / Number(c.fx)
-    return Number(c.monto)
+  const calcUSD = (obj) => {
+    if (!obj || !obj.monto) return null
+    if (obj.moneda === 'ARS' && obj.fx) return Number(obj.monto) / Number(obj.fx)
+    if (obj.moneda === 'USD') return Number(obj.monto)
+    return null
   }
 
-  const totalCostoUSD = CATS.reduce((s, cat) => s + (getCostoUSD(cat) || 0), 0)
-  const margenUSD = (Number(form.precio_cliente) || 0) - totalCostoUSD
-  const margenPct = form.precio_cliente > 0 ? (margenUSD / Number(form.precio_cliente) * 100).toFixed(1) : null
+  const totalPres = CATS.reduce((s, cat) => s + (calcUSD(form.pres[cat]) || 0), 0)
+  const totalReal = CATS.reduce((s, cat) => s + (calcUSD(form.real[cat]) || 0), 0)
+  const precio    = Number(form.precio_cliente) || 0
+  const cmPres    = precio > 0 ? ((precio - totalPres) / precio * 100).toFixed(1) : null
+  const cmReal    = precio > 0 && totalReal > 0 ? ((precio - totalReal) / precio * 100).toFixed(1) : null
 
   const handleSave = async (e) => {
     e.preventDefault(); setSaving(true)
     try {
-      // Build costos with USD calculated
-      const costosFinales = {}
+      const costos = {}
       for (const cat of CATS) {
-        const c = form.costos[cat]
-        if (c && c.monto) {
-          const usd = c.moneda === 'ARS' && c.fx ? Number(c.monto) / Number(c.fx) : Number(c.monto)
-          costosFinales[cat] = { ...c, usd }
+        costos[cat] = {
+          pres: { ...form.pres[cat], usd: calcUSD(form.pres[cat]) },
+          real: { ...form.real[cat], usd: calcUSD(form.real[cat]) },
         }
       }
-      await onSave({ ...form, precio_cliente: Number(form.precio_cliente) || null, costos: costosFinales })
+      await onSave({ descripcion: form.descripcion, precio_cliente: precio || null, costos })
     } finally { setSaving(false) }
   }
 
+  const CAT_COLORS = { material:'#EFF6FF', mano_obra:'#FEF3C7', instalacion:'#F0FDF4', consumibles:'#FEF2F2' }
+
   return (
     <div className="overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{width:600}}>
+      <div className="modal" style={{width:700,maxWidth:'98vw'}}>
         <h3>{item ? 'Editar Ítem' : 'Nuevo Ítem Cotizado'}</h3>
         <form onSubmit={handleSave}>
-          <div className="two-col" style={{marginBottom:12}}>
-            <div className="form-row" style={{gridColumn:'1/-1'}}>
-              <label>Descripción * (tal como figura en la cotización al cliente)</label>
-              <input required value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} placeholder="ej. A-Frame Fabricación" />
-            </div>
+          <div className="form-row">
+            <label>Descripción * (tal como figura en la cotización al cliente)</label>
+            <input required value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} placeholder="ej. A-Frame Fabricación" />
           </div>
           <div className="form-row">
             <label>Precio cotizado al cliente (USD) *</label>
@@ -430,30 +441,47 @@ function ModalEditarItem({ item, onClose, onSave }) {
 
           <div style={{borderTop:'1px solid var(--border)',paddingTop:14,marginTop:4}}>
             <div className="section-label">Desglose de Costos</div>
+
+            {/* Header */}
+            <div style={{display:'grid',gridTemplateColumns:'130px 1fr 1fr',gap:8,marginBottom:6,padding:'0 12px'}}>
+              <div />
+              <div style={{fontSize:10,fontWeight:700,color:'var(--blue)',textTransform:'uppercase',letterSpacing:.5}}>Presupuestado</div>
+              <div style={{fontSize:10,fontWeight:700,color:'#059669',textTransform:'uppercase',letterSpacing:.5}}>Real / Ejecutado</div>
+            </div>
+
             {CATS.map(cat => {
-              const c = form.costos[cat] || {}
-              const usd = getCostoUSD(cat)
+              const p = form.pres[cat]; const r = form.real[cat]
+              const pUSD = calcUSD(p); const rUSD = calcUSD(r)
+              const delta = pUSD != null && rUSD != null ? rUSD - pUSD : null
               return (
-                <div key={cat} style={{background:'#F8FAFC',border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',marginBottom:8}}>
-                  <div style={{fontWeight:700,fontSize:12,color:'var(--navy)',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                    <span>{CATS_LABEL[cat]}</span>
-                    {usd != null && <span className="cg" style={{fontFamily:'Courier New',fontSize:11}}>{fmtUSD(usd)} USD</span>}
-                  </div>
-                  <div style={{display:'grid',gridTemplateColumns:'80px 1fr 1fr',gap:8}}>
-                    <div className="form-row" style={{marginBottom:0}}>
-                      <label>Moneda</label>
-                      <select value={c.moneda||'USD'} onChange={e=>setCosto(cat,'moneda',e.target.value)} style={{padding:'5px 6px',fontSize:11}}>
-                        <option value="USD">USD</option>
-                        <option value="ARS">ARS</option>
-                      </select>
+                <div key={cat} style={{background:CAT_COLORS[cat],border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',marginBottom:8}}>
+                  <div style={{display:'grid',gridTemplateColumns:'130px 1fr 1fr',gap:8,alignItems:'start'}}>
+                    {/* Label + delta */}
+                    <div>
+                      <div style={{fontWeight:700,fontSize:12,color:'var(--navy)',marginBottom:4}}>{CATS_LABEL[cat]}</div>
+                      {pUSD!=null && <div style={{fontSize:10,color:'var(--blue)',fontFamily:'Courier New'}}>{fmtUSD(pUSD)}</div>}
+                      {rUSD!=null && <div style={{fontSize:10,color:'#059669',fontFamily:'Courier New'}}>{fmtUSD(rUSD)}</div>}
+                      {delta!=null && <div style={{fontSize:10,fontWeight:700,color:delta<=0?'#059669':'#DC2626',fontFamily:'Courier New'}}>{delta>0?'+':''}{fmtUSD(delta)}</div>}
                     </div>
-                    <div className="form-row" style={{marginBottom:0}}>
-                      <label>Monto ({c.moneda||'USD'})</label>
-                      <input type="number" step="0.01" value={c.monto||''} onChange={e=>setCosto(cat,'monto',e.target.value)} placeholder="0.00" style={{padding:'5px 8px',fontSize:11}} />
+                    {/* Presupuestado */}
+                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                      <div style={{display:'grid',gridTemplateColumns:'70px 1fr',gap:4}}>
+                        <select value={p.moneda} onChange={e=>setC('pres',cat,'moneda',e.target.value)} style={{padding:'4px 5px',fontSize:11}}>
+                          <option value="USD">USD</option><option value="ARS">ARS</option>
+                        </select>
+                        <input type="number" step="0.01" value={p.monto} onChange={e=>setC('pres',cat,'monto',e.target.value)} placeholder="Monto" style={{padding:'4px 7px',fontSize:11}} />
+                      </div>
+                      {p.moneda==='ARS' && <input type="number" value={p.fx} onChange={e=>setC('pres',cat,'fx',e.target.value)} placeholder="FX ej. 1400" style={{padding:'4px 7px',fontSize:11}} />}
                     </div>
-                    <div className="form-row" style={{marginBottom:0}}>
-                      <label>FX {(c.moneda||'USD')==='USD'?'(no aplica)':'(ARS/USD)'}</label>
-                      <input type="number" value={c.fx||''} onChange={e=>setCosto(cat,'fx',e.target.value)} placeholder="ej. 1425" disabled={(c.moneda||'USD')==='USD'} style={{padding:'5px 8px',fontSize:11}} />
+                    {/* Real */}
+                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                      <div style={{display:'grid',gridTemplateColumns:'70px 1fr',gap:4}}>
+                        <select value={r.moneda} onChange={e=>setC('real',cat,'moneda',e.target.value)} style={{padding:'4px 5px',fontSize:11}}>
+                          <option value="USD">USD</option><option value="ARS">ARS</option>
+                        </select>
+                        <input type="number" step="0.01" value={r.monto} onChange={e=>setC('real',cat,'monto',e.target.value)} placeholder="Monto" style={{padding:'4px 7px',fontSize:11}} />
+                      </div>
+                      {r.moneda==='ARS' && <input type="number" value={r.fx} onChange={e=>setC('real',cat,'fx',e.target.value)} placeholder="FX ej. 1425" style={{padding:'4px 7px',fontSize:11}} />}
                     </div>
                   </div>
                 </div>
@@ -462,13 +490,20 @@ function ModalEditarItem({ item, onClose, onSave }) {
           </div>
 
           {/* Resumen */}
-          <div style={{background:margenPct>0?'#F0FDF4':'#FEF2F2',border:`1px solid ${margenPct>0?'#BBF7D0':'#FECACA'}`,borderRadius:8,padding:'10px 14px',marginTop:4,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div style={{fontSize:12}}>
-              <span style={{color:'var(--muted)'}}>Costo total: </span><strong>{fmtUSD(totalCostoUSD)}</strong>
-              <span style={{color:'var(--muted)',marginLeft:16}}>Precio: </span><strong>{fmtUSD(Number(form.precio_cliente)||0)}</strong>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:4}}>
+            <div style={{background:'#EFF6FF',border:'1px solid #BFDBFE',borderRadius:8,padding:'10px 14px'}}>
+              <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>Presupuestado</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <strong style={{fontFamily:'Courier New'}}>{fmtUSD(totalPres)}</strong>
+                <span style={{fontWeight:800,fontSize:14,color:'#1E40AF'}}>CM: {cmPres!=null?cmPres+'%':'—'}</span>
+              </div>
             </div>
-            <div style={{fontSize:14,fontWeight:800,color:margenPct>0?'#059669':'#DC2626'}}>
-              CM: {margenPct!=null?margenPct+'%':'—'}
+            <div style={{background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:8,padding:'10px 14px'}}>
+              <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>Real ejecutado</div>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <strong style={{fontFamily:'Courier New'}}>{fmtUSD(totalReal||null)}</strong>
+                <span style={{fontWeight:800,fontSize:14,color:'#059669'}}>CM: {cmReal!=null?cmReal+'%':'—'}</span>
+              </div>
             </div>
           </div>
 
@@ -529,9 +564,9 @@ function TabPresupuesto({ proyecto }) {
   if (error)   return <div className="alert alert-err">Error: {error}</div>
 
   const totalPrecio = items.reduce((s,i) => s + (i.precio_cliente||0), 0)
-  const totalCosto  = items.reduce((s,i) => {
-    return s + CATS.reduce((sc, cat) => sc + (i.costos?.[cat]?.usd||0), 0)
-  }, 0)
+  const totalCostoPres = items.reduce((s,i) => s + CATS.reduce((sc,cat) => sc+(i.costos?.[cat]?.pres?.usd||0),0), 0)
+  const totalCostoReal = items.reduce((s,i) => s + CATS.reduce((sc,cat) => sc+(i.costos?.[cat]?.real?.usd||0),0), 0)
+  const totalCosto = totalCostoReal > 0 ? totalCostoReal : totalCostoPres
   const cmTotal = totalPrecio > 0 ? ((totalPrecio - totalCosto) / totalPrecio * 100).toFixed(1) : null
 
   return (
@@ -562,23 +597,28 @@ function TabPresupuesto({ proyecto }) {
                 <tr><td colSpan={10} className="state-msg">Sin ítems — agregá el primero</td></tr>
               )}
               {items.map(item => {
-                const costoTotal = CATS.reduce((s, cat) => s + (item.costos?.[cat]?.usd||0), 0)
+                const costoPresTotal = CATS.reduce((s, cat) => s + (item.costos?.[cat]?.pres?.usd||0), 0)
+                const costoRealTotal = CATS.reduce((s, cat) => s + (item.costos?.[cat]?.real?.usd||0), 0)
+                const costoTotal = costoRealTotal > 0 ? costoRealTotal : costoPresTotal
                 const margenUSD  = (item.precio_cliente||0) - costoTotal
                 const cm         = item.precio_cliente > 0 ? (margenUSD / item.precio_cliente * 100).toFixed(1) : null
                 return (
                   <tr key={item.id}>
                     <td style={{fontWeight:600}}>{item.descripcion}</td>
                     <td className="mono cb">{fmtUSD(item.precio_cliente)}</td>
-                    {CATS.map(cat => (
-                      <td key={cat} className="mono" style={{color: item.costos?.[cat]?.usd ? 'var(--text)' : 'var(--muted)'}}>
-                        {item.costos?.[cat]?.usd ? fmtUSD(item.costos[cat].usd) : '—'}
-                        {item.costos?.[cat]?.moneda === 'ARS' && item.costos?.[cat]?.monto && (
-                          <div style={{fontSize:9,color:'var(--muted)',marginTop:1}}>
-                            ARS {Number(item.costos[cat].monto).toLocaleString('es-AR',{minimumFractionDigits:0})}
-                          </div>
-                        )}
-                      </td>
-                    ))}
+                    {CATS.map(cat => {
+                      const pUSD = item.costos?.[cat]?.pres?.usd
+                      const rUSD = item.costos?.[cat]?.real?.usd
+                      const delta = pUSD!=null && rUSD!=null ? rUSD - pUSD : null
+                      return (
+                        <td key={cat} className="mono" style={{fontSize:11}}>
+                          {pUSD!=null && <div style={{color:'var(--blue)'}}>{fmtUSD(pUSD)}</div>}
+                          {rUSD!=null && <div style={{color:'#059669'}}>{fmtUSD(rUSD)}</div>}
+                          {delta!=null && <div style={{fontWeight:700,color:delta<=0?'#059669':'#DC2626'}}>{delta>0?'+':''}{fmtUSD(delta)}</div>}
+                          {pUSD==null && rUSD==null && <span style={{color:'var(--muted)'}}>—</span>}
+                        </td>
+                      )
+                    })}
                     <td className="mono"><strong>{fmtUSD(costoTotal)}</strong></td>
                     <td className={`mono ${margenUSD >= 0 ? 'cg' : 'cr'}`}><strong>{fmtUSD(margenUSD)}</strong></td>
                     <td>
@@ -606,7 +646,8 @@ function TabPresupuesto({ proyecto }) {
         {items.length > 0 && (
           <div className="tbl-foot">
             <span style={{color:'var(--muted)'}}>Precio total cotizado: <strong className="cb">{fmtUSD(totalPrecio)}</strong></span>
-            <span style={{color:'var(--muted)'}}>Costo total: <strong>{fmtUSD(totalCosto)}</strong></span>
+            <span style={{color:'var(--muted)'}}>Costo pres.: <strong className="cb">{fmtUSD(totalCostoPres)}</strong></span>
+            <span style={{color:'var(--muted)'}}>Costo real: <strong className="cg">{fmtUSD(totalCostoReal||null)}</strong></span>
             <span style={{marginLeft:'auto',fontWeight:700,fontSize:13,color:Number(cmTotal)>=30?'#059669':Number(cmTotal)>=15?'#D97706':'#DC2626'}}>
               CM Total: {cmTotal}%
             </span>
