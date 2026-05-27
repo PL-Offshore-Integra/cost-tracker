@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, NavLink, Outlet, useOutletContext } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate, NavLink, Outlet, useOutletContext } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 
 const ERP_HOME_URL = 'https://integra.terra-mare.com.ar'
@@ -1122,7 +1122,7 @@ export default function App() {
   )
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <style>{CSS}</style>
       <Routes>
         <Route element={<Layout session={session} />}>
@@ -1137,6 +1137,6 @@ export default function App() {
           <Route path="*"           element={<Navigate to="overview" replace />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
