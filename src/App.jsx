@@ -827,6 +827,143 @@ function ModalAlocar({ oc, proyecto, onClose, onSave }) {
   )
 }
 
+// ─── MODAL NUEVA OC CON PDF PARSER ───────────────────────────────────────────
+function ModalNuevaOC({ categorias, form, setForm, saving, onClose, onSubmit }) {
+  const [parsing, setParsing] = useState(false)
+  const [parseMsg, setParseMsg] = useState('')
+
+  const handlePDF = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setParsing(true)
+    setParseMsg('Leyendo PDF...')
+    try {
+      // Convert PDF to base64
+      const base64 = await new Promise((res, rej) => {
+        const r = new FileReader()
+        r.onload = () => res(r.result.split(',')[1])
+        r.onerror = rej
+        r.readAsDataURL(file)
+      })
+
+      setParseMsg('Interpretando con IA...')
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'document',
+                source: { type: 'base64', media_type: 'application/pdf', data: base64 }
+              },
+              {
+                type: 'text',
+                text: `Extraé los siguientes campos de esta Orden de Compra de Parana Logística y respondé SOLO con un JSON válido, sin texto adicional, sin markdown:
+{
+  "numero_oc": "número de OC (solo el número, ej: 2395)",
+  "proveedor": "nombre del proveedor (Sr. (es):)",
+  "cuit_proveedor": "CUIT del proveedor",
+  "fecha_emision": "fecha en formato YYYY-MM-DD",
+  "moneda": "ARS si dice Pesos Argentinos, USD si dice Dólares",
+  "monto_sin_iva": número sin IVA (campo Bruto),
+  "iva_pct": porcentaje de IVA como número (21 si hay impuestos ~21%, 0 si no hay),
+  "monto_total": número total con IVA,
+  "descripcion": "descripción breve del primer artículo o descripción general",
+  "observaciones": "texto del campo Observaciones"
+}`
+              }
+            ]
+          }]
+        })
+      })
+
+      const data = await response.json()
+      const text = data.content?.find(b => b.type === 'text')?.text || ''
+      const clean = text.replace(/```json|```/g, '').trim()
+      const parsed = JSON.parse(clean)
+
+      // Pre-fill form
+      setForm(f => ({
+        ...f,
+        numero_oc:    parsed.numero_oc    || f.numero_oc,
+        proveedor:    parsed.proveedor    || f.proveedor,
+        fecha_emision: parsed.fecha_emision || f.fecha_emision,
+        moneda:       parsed.moneda       || f.moneda,
+        monto_sin_iva: parsed.monto_sin_iva ? String(parsed.monto_sin_iva) : f.monto_sin_iva,
+        iva_pct:      parsed.iva_pct !== undefined ? String(parsed.iva_pct) : f.iva_pct,
+        descripcion:  parsed.descripcion  || f.descripcion,
+        notas:        parsed.observaciones || f.notas || '',
+      }))
+      setParseMsg('✓ PDF interpretado — revisá los campos')
+    } catch(err) {
+      setParseMsg('No se pudo leer el PDF. Completá los campos manualmente.')
+      console.error(err)
+    } finally {
+      setParsing(false)
+    }
+  }
+
+  return (
+    <div className="overlay open" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{width:560}}>
+        <h3>Nueva Orden de Compra</h3>
+
+        {/* PDF Upload */}
+        <div style={{background:'#EFF6FF',border:'1px dashed #93C5FD',borderRadius:8,padding:'12px 16px',marginBottom:16,display:'flex',alignItems:'center',gap:12}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:12,fontWeight:700,color:'#1E40AF',marginBottom:2}}>📎 Subir PDF de OC</div>
+            <div style={{fontSize:11,color:'#6381A7'}}>Se interpreta automáticamente y pre-llena los campos</div>
+          </div>
+          <label style={{
+            background: parsing ? '#9CA3AF' : '#235C96',
+            color:'#fff', border:'none', padding:'6px 14px', borderRadius:6,
+            fontSize:11, fontWeight:700, cursor: parsing ? 'not-allowed' : 'pointer',
+            whiteSpace:'nowrap'
+          }}>
+            {parsing ? 'Leyendo...' : 'Seleccionar PDF'}
+            <input type="file" accept=".pdf" onChange={handlePDF} disabled={parsing} style={{display:'none'}} />
+          </label>
+        </div>
+        {parseMsg && (
+          <div className={`alert ${parseMsg.startsWith('✓')?'alert-ok':'alert-warn'}`} style={{marginBottom:12}}>
+            {parseMsg}
+          </div>
+        )}
+
+        <form onSubmit={onSubmit}>
+          <div className="two-col">
+            <div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} placeholder="ej. 2395" /></div>
+            <div className="form-row"><label>Proveedor *</label><input required value={form.proveedor} onChange={e=>setForm(f=>({...f,proveedor:e.target.value}))} /></div>
+          </div>
+          <div className="two-col">
+            <div className="form-row"><label>Categoría *</label><select required value={form.categoria_id} onChange={e=>setForm(f=>({...f,categoria_id:e.target.value}))}><option value="">Seleccionar...</option>{categorias.map(c=><option key={c.id} value={c.id}>{c.nombre}</option>)}</select></div>
+            <div className="form-row"><label>Estado</label><select value={form.estado} onChange={e=>setForm(f=>({...f,estado:e.target.value}))}><option value="pendiente_aprobacion">Pendiente aprobación</option><option value="aprobada">Aprobada</option><option value="activa">Activa</option></select></div>
+          </div>
+          <div className="form-row"><label>Descripción</label><input value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} placeholder="ej. Caño cuadrado 50x50" /></div>
+          <div className="two-col">
+            <div className="form-row"><label>Moneda</label><select value={form.moneda} onChange={e=>setForm(f=>({...f,moneda:e.target.value}))}><option value="ARS">ARS</option><option value="USD">USD</option></select></div>
+            <div className="form-row"><label>FX {form.moneda==='USD'?'(no aplica)':'*'}</label><input type="number" value={form.fx} onChange={e=>setForm(f=>({...f,fx:e.target.value}))} disabled={form.moneda==='USD'} required={form.moneda==='ARS'} placeholder="ej. 1425" /></div>
+          </div>
+          <div className="two-col">
+            <div className="form-row"><label>Monto s/IVA ({form.moneda}) *</label><input required type="number" step="0.01" value={form.monto_sin_iva} onChange={e=>setForm(f=>({...f,monto_sin_iva:e.target.value}))} placeholder="0.00" /></div>
+            <div className="form-row"><label>IVA %</label><select value={form.iva_pct} onChange={e=>setForm(f=>({...f,iva_pct:e.target.value}))}><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div>
+          </div>
+          <div className="form-row"><label>Fecha emisión</label><input type="date" value={form.fecha_emision} onChange={e=>setForm(f=>({...f,fecha_emision:e.target.value}))} /></div>
+          <div className="modal-footer">
+            <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn" disabled={saving||parsing}>{saving?'Guardando...':'Crear OC'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function SubTabOC({ proyecto }) {
   const [ocs, setOcs]               = useState([])
   const [categorias, setCategorias] = useState([])
@@ -932,35 +1069,14 @@ function SubTabOC({ proyecto }) {
       )}
 
       {modal && (
-        <div className="overlay open" onClick={e=>e.target===e.currentTarget&&setModal(false)}>
-          <div className="modal">
-            <h3>Nueva Orden de Compra</h3>
-            <form onSubmit={handleSave}>
-              <div className="two-col">
-                <div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} placeholder="ej. OC-007" /></div>
-                <div className="form-row"><label>Proveedor *</label><input required value={form.proveedor} onChange={e=>setForm(f=>({...f,proveedor:e.target.value}))} /></div>
-              </div>
-              <div className="two-col">
-                <div className="form-row"><label>Categoría *</label><select required value={form.categoria_id} onChange={e=>setForm(f=>({...f,categoria_id:e.target.value}))}><option value="">Seleccionar...</option>{categorias.map(c=><option key={c.id} value={c.id}>{c.nombre}</option>)}</select></div>
-                <div className="form-row"><label>Estado</label><select value={form.estado} onChange={e=>setForm(f=>({...f,estado:e.target.value}))}><option value="pendiente_aprobacion">Pendiente aprobación</option><option value="aprobada">Aprobada</option><option value="activa">Activa</option></select></div>
-              </div>
-              <div className="form-row"><label>Descripción</label><input value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} /></div>
-              <div className="two-col">
-                <div className="form-row"><label>Moneda</label><select value={form.moneda} onChange={e=>setForm(f=>({...f,moneda:e.target.value}))}><option value="USD">USD</option><option value="ARS">ARS</option></select></div>
-                <div className="form-row"><label>FX {form.moneda==='USD'?'(no aplica)':'*'}</label><input type="number" value={form.fx} onChange={e=>setForm(f=>({...f,fx:e.target.value}))} disabled={form.moneda==='USD'} required={form.moneda==='ARS'} placeholder="ej. 1425" /></div>
-              </div>
-              <div className="two-col">
-                <div className="form-row"><label>Monto s/IVA ({form.moneda}) *</label><input required type="number" step="0.01" value={form.monto_sin_iva} onChange={e=>setForm(f=>({...f,monto_sin_iva:e.target.value}))} placeholder="0.00" /></div>
-                <div className="form-row"><label>IVA %</label><select value={form.iva_pct} onChange={e=>setForm(f=>({...f,iva_pct:e.target.value}))}><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div>
-              </div>
-              <div className="form-row"><label>Fecha emisión</label><input type="date" value={form.fecha_emision} onChange={e=>setForm(f=>({...f,fecha_emision:e.target.value}))} /></div>
-              <div className="modal-footer">
-                <button type="button" className="btn-ghost" onClick={()=>setModal(false)}>Cancelar</button>
-                <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Crear OC'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <ModalNuevaOC
+          categorias={categorias}
+          form={form}
+          setForm={setForm}
+          saving={saving}
+          onClose={()=>setModal(false)}
+          onSubmit={handleSave}
+        />
       )}
     </>
   )
