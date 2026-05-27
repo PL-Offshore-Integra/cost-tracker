@@ -38,7 +38,21 @@ const api = {
     const { data: saldos } = await supabase.from('cpt_oc_saldo').select('id,facturado_usd,saldo_usd,pct_facturado,oc_total_usd,oc_total_usd_con_iva').eq('proyecto_id',proyectoId)
     const sMap = {}
     for (const s of saldos||[]) sMap[s.id] = s
-    return (data||[]).map(o => ({...o, ...(sMap[o.id]||{facturado_usd:0,saldo_usd:o.monto_usd_sin_iva,pct_facturado:0})}))
+    return (data||[]).map(o => {
+      const s = sMap[o.id] || {}
+      // For ARS OCs, total USD = (monto_sin_iva * (1 + iva_pct/100)) / fx
+      const totalConIvaUSD = o.moneda === 'ARS' && o.fx
+        ? (o.monto_sin_iva * (1 + (o.iva_pct||0)/100)) / o.fx
+        : (o.monto_usd_con_iva || o.monto_usd_sin_iva)
+      return {
+        ...o,
+        total_alocar_usd: totalConIvaUSD,
+        ...s,
+        facturado_usd: s.facturado_usd||0,
+        saldo_usd: s.saldo_usd||o.monto_usd_sin_iva,
+        pct_facturado: s.pct_facturado||0
+      }
+    })
   },
   getOCsBasic: async (proyectoId) => {
     const { data, error } = await supabase.from('cpt_oc').select('id,numero_oc,proveedor').eq('proyecto_id',proyectoId).order('numero_oc')
@@ -113,7 +127,12 @@ const api = {
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
-const fmtUSD  = (n) => n == null ? '—' : '$' + Number(n).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})
+const fmtUSD  = (n) => {
+  if (n == null) return '—'
+  const num = Number(n)
+  const dec = Math.abs(num % 1) > 0.004 ? 2 : 0
+  return '$' + num.toLocaleString('es-AR', {minimumFractionDigits:dec, maximumFractionDigits:dec})
+}
 const fmtDate = (d) => d ? new Date(d+'T00:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—'
 const safeReplace = (s) => (s||'').replace(/_/g,' ')
 
@@ -709,7 +728,7 @@ function ModalAlocar({ oc, proyecto, onClose, onSave }) {
   const [saving, setSaving]       = useState(false)
   const [form, setForm]           = useState({ item_id:'', categoria:'material', monto_usd:'', notas:'' })
 
-  const ocTotal = oc.monto_usd_sin_iva || 0
+  const ocTotal = oc.total_alocar_usd || oc.monto_usd_sin_iva || 0
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -1089,7 +1108,10 @@ function SubTabOC({ proyecto }) {
                   <td style={{fontWeight:600}}>{o.proveedor}</td>
                   <td style={{color:'var(--muted)',fontSize:11}}>{o.descripcion}</td>
                   <td className="mono">{o.moneda}</td>
-                  <td className="mono">{fmtUSD(o.monto_usd_sin_iva)}</td>
+                  <td className="mono">
+                    <div>{fmtUSD(o.monto_usd_sin_iva)}</div>
+                    <div style={{fontSize:10,color:'var(--muted)'}}>c/IVA: {fmtUSD(o.total_alocar_usd)}</div>
+                  </td>
                   <td>
                     <div style={{display:'flex',flexDirection:'column',gap:3}}>
                       <span className={`mono ${(o.pct_facturado||0)>=100?'cg':'cw'}`} style={{fontSize:11}}>{fmtUSD(o.facturado_usd)} ({o.pct_facturado||0}%)</span>
