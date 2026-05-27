@@ -257,19 +257,21 @@ function Layout({ session }) {
   const [modalNuevo, setModalNuevo] = useState(false)
   const [saving, setSaving]         = useState(false)
   const [errorProyecto, setErrorProyecto] = useState('')
+  const [errorCarga, setErrorCarga] = useState('')
   const [formP, setFormP] = useState({ nombre:'', cliente:'', descripcion:'', fecha_inicio:'', fecha_fin_est:'' })
 
   const cargarProyectos = async () => {
-    try {
-      const { data, error } = await supabase.from('cpt_proyectos').select('id,nombre,cliente').eq('estado','activo').order('created_at',{ascending:false})
-      if (error) throw error
-      setProyectos(data || [])
-      if (!proyectoId && data?.length === 1) {
-        setProyectoId(data[0].id)
-        localStorage.setItem('cpt_proyecto_id', data[0].id)
-      }
-    } catch {
-      // no bloquea la UI, proyectos queda vacío con mensaje en selector
+    setErrorCarga('')
+    const { data, error } = await supabase
+      .from('cpt_proyectos')
+      .select('id,nombre,cliente')
+      .eq('estado','activo')
+      .order('created_at',{ascending:false})
+    if (error) { setErrorCarga('Error: ' + error.message); return }
+    setProyectos(data || [])
+    if (!proyectoId && data?.length === 1) {
+      setProyectoId(data[0].id)
+      localStorage.setItem('cpt_proyecto_id', data[0].id)
     }
   }
 
@@ -339,6 +341,11 @@ function Layout({ session }) {
             </div>
           : <Outlet context={{ proyecto }} />
         }
+        {errorCarga && (
+          <div style={{position:'fixed',bottom:16,right:16,background:'#FEF2F2',border:'1px solid #FECACA',color:'#991B1B',padding:'10px 16px',borderRadius:8,fontSize:12,zIndex:999}}>
+            {errorCarga}
+          </div>
+        )}
       </div>
 
       {modalNuevo && (
