@@ -72,6 +72,15 @@ const api = {
     if (error) throw error
     return data || []
   },
+  getItems: async (proyectoId) => {
+    const { data, error } = await supabase
+      .from('cpt_items_proyecto')
+      .select('*')
+      .eq('proyecto_id', proyectoId)
+      .order('orden')
+    if (error) throw error
+    return data || []
+  },
   getAlertas: async (proyectoId) => {
     const { data, error } = await supabase.from('cpt_presupuesto_lineas').select('descripcion,monto_pres_usd,monto_real_usd').eq('proyecto_id',proyectoId).eq('estado','alerta')
     if (error) throw error
@@ -361,148 +370,232 @@ function TabOverview({ proyecto }) {
 }
 
 // ─── TAB PRESUPUESTO ──────────────────────────────────────────────────────────
+const CATS = ['material', 'mano_obra', 'instalacion', 'consumibles']
+const CATS_LABEL = { material: 'Material', mano_obra: 'Mano de Obra', instalacion: 'Instalación', consumibles: 'Consumibles' }
+
+function ModalEditarItem({ item, onClose, onSave }) {
+  const [form, setForm] = useState({
+    descripcion: item?.descripcion || '',
+    precio_cliente: item?.precio_cliente || '',
+    costos: item?.costos || {}
+  })
+  const [saving, setSaving] = useState(false)
+
+  const setCosto = (cat, field, val) => {
+    setForm(f => ({ ...f, costos: { ...f.costos, [cat]: { ...(f.costos[cat]||{}), [field]: val } } }))
+  }
+
+  const getCostoUSD = (cat) => {
+    const c = form.costos[cat]
+    if (!c || !c.monto) return null
+    if (c.moneda === 'ARS' && c.fx) return Number(c.monto) / Number(c.fx)
+    return Number(c.monto)
+  }
+
+  const totalCostoUSD = CATS.reduce((s, cat) => s + (getCostoUSD(cat) || 0), 0)
+  const margenUSD = (Number(form.precio_cliente) || 0) - totalCostoUSD
+  const margenPct = form.precio_cliente > 0 ? (margenUSD / Number(form.precio_cliente) * 100).toFixed(1) : null
+
+  const handleSave = async (e) => {
+    e.preventDefault(); setSaving(true)
+    try {
+      // Build costos with USD calculated
+      const costosFinales = {}
+      for (const cat of CATS) {
+        const c = form.costos[cat]
+        if (c && c.monto) {
+          const usd = c.moneda === 'ARS' && c.fx ? Number(c.monto) / Number(c.fx) : Number(c.monto)
+          costosFinales[cat] = { ...c, usd }
+        }
+      }
+      await onSave({ ...form, precio_cliente: Number(form.precio_cliente) || null, costos: costosFinales })
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{width:600}}>
+        <h3>{item ? 'Editar Ítem' : 'Nuevo Ítem Cotizado'}</h3>
+        <form onSubmit={handleSave}>
+          <div className="two-col" style={{marginBottom:12}}>
+            <div className="form-row" style={{gridColumn:'1/-1'}}>
+              <label>Descripción * (tal como figura en la cotización al cliente)</label>
+              <input required value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} placeholder="ej. A-Frame Fabricación" />
+            </div>
+          </div>
+          <div className="form-row">
+            <label>Precio cotizado al cliente (USD) *</label>
+            <input required type="number" step="0.01" value={form.precio_cliente} onChange={e=>setForm(f=>({...f,precio_cliente:e.target.value}))} placeholder="0.00" />
+          </div>
+
+          <div style={{borderTop:'1px solid var(--border)',paddingTop:14,marginTop:4}}>
+            <div className="section-label">Desglose de Costos</div>
+            {CATS.map(cat => {
+              const c = form.costos[cat] || {}
+              const usd = getCostoUSD(cat)
+              return (
+                <div key={cat} style={{background:'#F8FAFC',border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px',marginBottom:8}}>
+                  <div style={{fontWeight:700,fontSize:12,color:'var(--navy)',marginBottom:8,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <span>{CATS_LABEL[cat]}</span>
+                    {usd != null && <span className="cg" style={{fontFamily:'Courier New',fontSize:11}}>{fmtUSD(usd)} USD</span>}
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'80px 1fr 1fr',gap:8}}>
+                    <div className="form-row" style={{marginBottom:0}}>
+                      <label>Moneda</label>
+                      <select value={c.moneda||'USD'} onChange={e=>setCosto(cat,'moneda',e.target.value)} style={{padding:'5px 6px',fontSize:11}}>
+                        <option value="USD">USD</option>
+                        <option value="ARS">ARS</option>
+                      </select>
+                    </div>
+                    <div className="form-row" style={{marginBottom:0}}>
+                      <label>Monto ({c.moneda||'USD'})</label>
+                      <input type="number" step="0.01" value={c.monto||''} onChange={e=>setCosto(cat,'monto',e.target.value)} placeholder="0.00" style={{padding:'5px 8px',fontSize:11}} />
+                    </div>
+                    <div className="form-row" style={{marginBottom:0}}>
+                      <label>FX {(c.moneda||'USD')==='USD'?'(no aplica)':'(ARS/USD)'}</label>
+                      <input type="number" value={c.fx||''} onChange={e=>setCosto(cat,'fx',e.target.value)} placeholder="ej. 1425" disabled={(c.moneda||'USD')==='USD'} style={{padding:'5px 8px',fontSize:11}} />
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Resumen */}
+          <div style={{background:margenPct>0?'#F0FDF4':'#FEF2F2',border:`1px solid ${margenPct>0?'#BBF7D0':'#FECACA'}`,borderRadius:8,padding:'10px 14px',marginTop:4,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{fontSize:12}}>
+              <span style={{color:'var(--muted)'}}>Costo total: </span><strong>{fmtUSD(totalCostoUSD)}</strong>
+              <span style={{color:'var(--muted)',marginLeft:16}}>Precio: </span><strong>{fmtUSD(Number(form.precio_cliente)||0)}</strong>
+            </div>
+            <div style={{fontSize:14,fontWeight:800,color:margenPct>0?'#059669':'#DC2626'}}>
+              CM: {margenPct!=null?margenPct+'%':'—'}
+            </div>
+          </div>
+
+          <div className="modal-footer">
+            <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function TabPresupuesto({ proyecto }) {
-  const [lineas, setLineas]         = useState([])
-  const [categorias, setCategorias] = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState(null)
-  const [filtroCat, setFiltroCat]   = useState('')
-  const [modal, setModal]           = useState(false)
-  const [saving, setSaving]         = useState(false)
-  const [editando, setEditando]     = useState({}) // {id: {monto_real, fx_real, moneda_real}}
-  const [form, setForm] = useState({item_numero:'',descripcion:'',categoria_id:'',frecuencia:'one-time',moneda_pres:'USD',monto_pres:'',fx_pres:'',es_reembolsable:false,handling_fee_pct:'',estado:'estimado'})
+  const [items, setItems]       = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
+  const [modalItem, setModalItem] = useState(null) // null=cerrado, 'new'=nuevo, item=editar
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
-    try {
-      const [l, c] = await Promise.all([api.getLineas(proyecto.id), api.getCategorias()])
-      setLineas(l); setCategorias(c)
-    } catch(e) { setError(e.message) }
+    try { setItems(await api.getItems(proyecto.id)) }
+    catch(e) { setError(e.message) }
     finally { setLoading(false) }
   }, [proyecto.id])
 
   useEffect(() => { load() }, [load])
 
-  const handleSave = async (e) => {
-    e.preventDefault(); setSaving(true)
+  const handleSave = async (data) => {
     try {
-      const { error } = await supabase.from('cpt_presupuesto_lineas').insert({
-        ...form, proyecto_id:proyecto.id,
-        monto_pres:Number(form.monto_pres)||null,
-        fx_pres:Number(form.fx_pres)||null,
-        handling_fee_pct:Number(form.handling_fee_pct)||null
-      })
-      if (error) { alert(error.message); return }
-      setModal(false)
-      setForm({item_numero:'',descripcion:'',categoria_id:'',frecuencia:'one-time',moneda_pres:'USD',monto_pres:'',fx_pres:'',es_reembolsable:false,handling_fee_pct:'',estado:'estimado'})
-      await load()
-    } finally { setSaving(false) }
-  }
-
-  // Edición inline del costo real
-  const startEdit = (l) => {
-    setEditando(prev => ({...prev, [l.id]: {
-      monto_real: l.monto_real || '',
-      fx_real: l.fx_real || '',
-      moneda_real: l.moneda_real || l.moneda_pres || 'USD'
-    }}))
-  }
-
-  const saveEdit = async (id) => {
-    const edit = editando[id]
-    if (!edit) return
-    try {
-      const { error } = await supabase.from('cpt_presupuesto_lineas').update({
-        monto_real: Number(edit.monto_real) || null,
-        fx_real: Number(edit.fx_real) || null,
-        moneda_real: edit.moneda_real || null,
-        estado: Number(edit.monto_real) ? 'confirmado' : 'estimado'
-      }).eq('id', id)
-      if (error) { alert(error.message); return }
-      setEditando(prev => { const n={...prev}; delete n[id]; return n })
+      if (modalItem === 'new') {
+        const { error } = await supabase.from('cpt_items_proyecto').insert({
+          ...data, proyecto_id: proyecto.id, orden: items.length
+        })
+        if (error) { alert(error.message); return }
+      } else {
+        const { error } = await supabase.from('cpt_items_proyecto').update({
+          descripcion: data.descripcion,
+          precio_cliente: data.precio_cliente,
+          costos: data.costos,
+          updated_at: new Date().toISOString()
+        }).eq('id', modalItem.id)
+        if (error) { alert(error.message); return }
+      }
+      setModalItem(null)
       await load()
     } catch(e) { alert(e.message) }
   }
 
-  const cancelEdit = (id) => {
-    setEditando(prev => { const n={...prev}; delete n[id]; return n })
+  const handleDelete = async (id) => {
+    if (!confirm('¿Eliminar este ítem?')) return
+    const { error } = await supabase.from('cpt_items_proyecto').delete().eq('id', id)
+    if (error) { alert(error.message); return }
+    await load()
   }
 
-  if (loading) return <div className="state-msg">Cargando presupuesto...</div>
+  if (loading) return <div className="state-msg">Cargando ítems...</div>
   if (error)   return <div className="alert alert-err">Error: {error}</div>
 
-  const filtradas = filtroCat ? lineas.filter(l=>l.categoria_id===filtroCat) : lineas
-  const totalPres = lineas.reduce((s,l)=>s+(l.monto_pres_usd||0),0)
-  const totalReal = lineas.reduce((s,l)=>s+(l.monto_real_usd||0),0)
+  const totalPrecio = items.reduce((s,i) => s + (i.precio_cliente||0), 0)
+  const totalCosto  = items.reduce((s,i) => {
+    return s + CATS.reduce((sc, cat) => sc + (i.costos?.[cat]?.usd||0), 0)
+  }, 0)
+  const cmTotal = totalPrecio > 0 ? ((totalPrecio - totalCosto) / totalPrecio * 100).toFixed(1) : null
 
   return (
     <>
       <div className="card">
         <div className="card-hdr">
-          <span className="card-title">Líneas de Costo — Presupuesto vs Real</span>
-          <div style={{display:'flex',gap:8}}>
-            <select style={{width:180}} value={filtroCat} onChange={e=>setFiltroCat(e.target.value)}>
-              <option value="">Todas las categorías</option>
-              {categorias.map(c=><option key={c.id} value={c.id}>{c.nombre}</option>)}
-            </select>
-            <button className="btn" onClick={()=>setModal(true)}>+ Nueva línea</button>
-          </div>
+          <span className="card-title">Ítems Cotizados al Cliente — Presupuesto vs Costo Real</span>
+          <button className="btn" onClick={() => setModalItem('new')}>+ Nuevo ítem</button>
         </div>
         <div className="tbl-wrap">
           <table>
             <thead>
               <tr>
-                <th>Item</th><th>Descripción</th><th>Categoría</th><th>Frec.</th>
-                <th>Moneda</th><th>Pres. USD</th>
-                <th>Real (moneda)</th><th>FX Real</th><th>Real USD</th>
-                <th>Delta</th><th>Estado</th><th></th>
+                <th>Descripción</th>
+                <th>Precio Cliente</th>
+                <th style={{background:'#EFF6FF'}}>Material</th>
+                <th style={{background:'#FEF3C7'}}>Mano de Obra</th>
+                <th style={{background:'#F0FDF4'}}>Instalación</th>
+                <th style={{background:'#FEF2F2'}}>Consumibles</th>
+                <th>Costo Total</th>
+                <th>Margen $</th>
+                <th>CM %</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
-              {filtradas.length===0 && <tr><td colSpan={12} className="state-msg">Sin líneas — agregá la primera</td></tr>}
-              {filtradas.map(l=>{
-                const delta = l.monto_real_usd!=null ? l.monto_real_usd-(l.monto_pres_usd||0) : null
-                const isEditing = !!editando[l.id]
-                const edit = editando[l.id] || {}
+              {items.length === 0 && (
+                <tr><td colSpan={10} className="state-msg">Sin ítems — agregá el primero</td></tr>
+              )}
+              {items.map(item => {
+                const costoTotal = CATS.reduce((s, cat) => s + (item.costos?.[cat]?.usd||0), 0)
+                const margenUSD  = (item.precio_cliente||0) - costoTotal
+                const cm         = item.precio_cliente > 0 ? (margenUSD / item.precio_cliente * 100).toFixed(1) : null
                 return (
-                  <tr key={l.id} style={l.estado==='alerta'?{background:'#FEF2F2'}:isEditing?{background:'#EFF6FF'}:{}}>
-                    <td style={{color:'var(--muted)',fontSize:11}}>{l.item_numero||'—'}</td>
-                    <td style={{fontWeight:500}}>{l.descripcion}</td>
-                    <td>{l.cpt_categorias&&<span className={`tag t-${l.cpt_categorias.color}`}>{l.cpt_categorias.nombre}</span>}</td>
-                    <td style={{color:'var(--muted)',fontSize:11}}>{l.frecuencia}</td>
-                    <td className="mono">{l.moneda_pres}</td>
-                    <td className="mono">{fmtUSD(l.monto_pres_usd)}</td>
+                  <tr key={item.id}>
+                    <td style={{fontWeight:600}}>{item.descripcion}</td>
+                    <td className="mono cb">{fmtUSD(item.precio_cliente)}</td>
+                    {CATS.map(cat => (
+                      <td key={cat} className="mono" style={{color: item.costos?.[cat]?.usd ? 'var(--text)' : 'var(--muted)'}}>
+                        {item.costos?.[cat]?.usd ? fmtUSD(item.costos[cat].usd) : '—'}
+                        {item.costos?.[cat]?.moneda === 'ARS' && item.costos?.[cat]?.monto && (
+                          <div style={{fontSize:9,color:'var(--muted)',marginTop:1}}>
+                            ARS {Number(item.costos[cat].monto).toLocaleString('es-AR',{minimumFractionDigits:0})}
+                          </div>
+                        )}
+                      </td>
+                    ))}
+                    <td className="mono"><strong>{fmtUSD(costoTotal)}</strong></td>
+                    <td className={`mono ${margenUSD >= 0 ? 'cg' : 'cr'}`}><strong>{fmtUSD(margenUSD)}</strong></td>
                     <td>
-                      {isEditing ? (
-                        <div style={{display:'flex',gap:4,alignItems:'center'}}>
-                          <select value={edit.moneda_real} onChange={e=>setEditando(prev=>({...prev,[l.id]:{...prev[l.id],moneda_real:e.target.value}}))} style={{width:60,padding:'3px 4px',fontSize:11}}>
-                            <option value="USD">USD</option><option value="ARS">ARS</option>
-                          </select>
-                          <input type="number" step="0.01" className="inline-edit" value={edit.monto_real} onChange={e=>setEditando(prev=>({...prev,[l.id]:{...prev[l.id],monto_real:e.target.value}}))} placeholder="0.00" />
-                        </div>
-                      ) : (
-                        <span className="mono">{l.monto_real!=null ? (l.moneda_real+' '+Number(l.monto_real).toLocaleString('es-AR',{minimumFractionDigits:0})) : '—'}</span>
+                      {cm != null && (
+                        <span style={{
+                          display:'inline-block', padding:'2px 8px', borderRadius:6,
+                          fontWeight:700, fontSize:12,
+                          background: Number(cm)>=30?'#D1FAE5':Number(cm)>=15?'#FEF3C7':'#FEE2E2',
+                          color: Number(cm)>=30?'#065F46':Number(cm)>=15?'#92400E':'#991B1B'
+                        }}>{cm}%</span>
                       )}
                     </td>
                     <td>
-                      {isEditing ? (
-                        <input type="number" className="inline-edit" value={edit.fx_real} onChange={e=>setEditando(prev=>({...prev,[l.id]:{...prev[l.id],fx_real:e.target.value}}))} placeholder={edit.moneda_real==='USD'?'USD':'ej. 1425'} disabled={edit.moneda_real==='USD'} style={{width:70}} />
-                      ) : (
-                        <span className="mono" style={{color:'var(--muted)'}}>{l.fx_real||(l.moneda_real==='USD'?'USD':'—')}</span>
-                      )}
-                    </td>
-                    <td className={`mono ${delta==null?'':delta<=0?'cg':'cr'}`}>{fmtUSD(l.monto_real_usd)}</td>
-                    <td className={`mono ${delta==null?'':delta<=0?'cg':'cr'}`}>{delta==null?'—':(delta>0?'+':'')+fmtUSD(delta)}</td>
-                    <td><span className={`chip ${l.estado==='confirmado'?'c-ok':l.estado==='alerta'?'c-pend':'c-apr'}`}>{safeReplace(l.estado)}</span></td>
-                    <td>
-                      {isEditing ? (
-                        <div style={{display:'flex',gap:4}}>
-                          <button className="btn" style={{padding:'3px 8px',fontSize:10}} onClick={()=>saveEdit(l.id)}>✓</button>
-                          <button className="btn-ghost" style={{padding:'3px 8px',fontSize:10}} onClick={()=>cancelEdit(l.id)}>✕</button>
-                        </div>
-                      ) : (
-                        <button className="btn-ghost" style={{padding:'3px 8px',fontSize:10}} onClick={()=>startEdit(l)}>Editar</button>
-                      )}
+                      <div style={{display:'flex',gap:4}}>
+                        <button className="btn-ghost" style={{padding:'3px 8px',fontSize:10}} onClick={() => setModalItem(item)}>Editar</button>
+                        <button className="btn-ghost" style={{padding:'3px 8px',fontSize:10,color:'var(--r)'}} onClick={() => handleDelete(item.id)}>✕</button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -510,39 +603,23 @@ function TabPresupuesto({ proyecto }) {
             </tbody>
           </table>
         </div>
-        <div className="tbl-foot">
-          <span style={{color:'var(--muted)'}}>Presupuestado: <strong style={{color:'var(--navy)'}}>{fmtUSD(totalPres)}</strong></span>
-          <span style={{color:'var(--muted)'}}>Real confirmado: <strong className="cg">{fmtUSD(totalReal)}</strong></span>
-          <span style={{marginLeft:'auto'}} className={totalReal<=totalPres?'cg':'cr'}>Delta: {totalReal>totalPres?'+':''}{fmtUSD(totalReal-totalPres)}</span>
-        </div>
+        {items.length > 0 && (
+          <div className="tbl-foot">
+            <span style={{color:'var(--muted)'}}>Precio total cotizado: <strong className="cb">{fmtUSD(totalPrecio)}</strong></span>
+            <span style={{color:'var(--muted)'}}>Costo total: <strong>{fmtUSD(totalCosto)}</strong></span>
+            <span style={{marginLeft:'auto',fontWeight:700,fontSize:13,color:Number(cmTotal)>=30?'#059669':Number(cmTotal)>=15?'#D97706':'#DC2626'}}>
+              CM Total: {cmTotal}%
+            </span>
+          </div>
+        )}
       </div>
 
-      {modal && (
-        <div className="overlay open" onClick={e=>e.target===e.currentTarget&&setModal(false)}>
-          <div className="modal">
-            <h3>Nueva Línea de Costo</h3>
-            <form onSubmit={handleSave}>
-              <div className="two-col">
-                <div className="form-row"><label>Item #</label><input value={form.item_numero} onChange={e=>setForm(f=>({...f,item_numero:e.target.value}))} placeholder="ej. 1a" /></div>
-                <div className="form-row"><label>Categoría *</label><select required value={form.categoria_id} onChange={e=>setForm(f=>({...f,categoria_id:e.target.value}))}><option value="">Seleccionar...</option>{categorias.map(c=><option key={c.id} value={c.id}>{c.nombre}</option>)}</select></div>
-              </div>
-              <div className="form-row"><label>Descripción *</label><input required value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} placeholder="ej. Fixed A-Frame – Material hierro" /></div>
-              <div className="two-col">
-                <div className="form-row"><label>Moneda</label><select value={form.moneda_pres} onChange={e=>setForm(f=>({...f,moneda_pres:e.target.value}))}><option value="USD">USD</option><option value="ARS">ARS</option></select></div>
-                <div className="form-row"><label>FX {form.moneda_pres==='USD'?'(no aplica)':'*'}</label><input type="number" value={form.fx_pres} onChange={e=>setForm(f=>({...f,fx_pres:e.target.value}))} disabled={form.moneda_pres==='USD'} required={form.moneda_pres==='ARS'} placeholder="ej. 1400" /></div>
-              </div>
-              <div className="form-row"><label>Monto Presupuestado ({form.moneda_pres}) *</label><input required type="number" step="0.01" value={form.monto_pres} onChange={e=>setForm(f=>({...f,monto_pres:e.target.value}))} placeholder="0.00" /></div>
-              <div className="two-col">
-                <div className="form-row"><label>Frecuencia</label><select value={form.frecuencia} onChange={e=>setForm(f=>({...f,frecuencia:e.target.value}))}><option value="one-time">One-time</option><option value="mensual">Mensual</option></select></div>
-                <div className="form-row"><label>Estado</label><select value={form.estado} onChange={e=>setForm(f=>({...f,estado:e.target.value}))}><option value="estimado">Estimado</option><option value="confirmado">Confirmado</option><option value="pendiente_oc">Pendiente OC</option></select></div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-ghost" onClick={()=>setModal(false)}>Cancelar</button>
-                <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
+      {modalItem && (
+        <ModalEditarItem
+          item={modalItem === 'new' ? null : modalItem}
+          onClose={() => setModalItem(null)}
+          onSave={handleSave}
+        />
       )}
     </>
   )
