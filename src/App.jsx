@@ -1091,42 +1091,22 @@ function Categorias() {
 
 // ─── APP ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [session, setSession]       = useState(null)
-  const [autorizado, setAutorizado] = useState(false)
-  const [loading, setLoading]       = useState(true)
+  const [session, setSession] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
-      if (session) loadPermisos(session.user.id)
-      else setLoading(false)
+      setLoading(false)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
       setSession(session)
-      if (session) loadPermisos(session.user.id)
-      else { setAutorizado(false); setLoading(false) }
     })
     return () => subscription.unsubscribe()
   }, [])
 
-  const loadPermisos = async (userId) => {
-    try {
-      const { data } = await supabase.from('user_roles').select('modulos').eq('user_id',userId).maybeSingle()
-      const mods = data?.modulos || []
-      setAutorizado(true)
-    } catch { setAutorizado(false) }
-    finally { setLoading(false) }
-  }
-
   if (loading) return <><style>{CSS}</style><div className="loading-screen"><div className="loading-text">Cargando...</div></div></>
   if (!session) return <><style>{CSS}</style><LoginPage /></>
-  if (!autorizado) return (
-    <><style>{CSS}</style>
-    <div className="sin-acceso">
-      <div className="alert alert-err" style={{maxWidth:380,textAlign:'center',fontSize:14}}>Tu usuario no tiene acceso a este módulo.<br/>Contactá al administrador.</div>
-      <button className="btn-ghost" onClick={() => supabase.auth.signOut()} style={{color:'#fff',borderColor:'rgba(255,255,255,.3)'}}>Cerrar sesión</button>
-    </div></>
-  )
 
   return (
     <HashRouter>
