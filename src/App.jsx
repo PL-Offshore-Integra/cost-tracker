@@ -73,11 +73,35 @@ const api = {
     return data || []
   },
   getItems: async (proyectoId) => {
+    const [{ data, error }, { data: alocs }] = await Promise.all([
+      supabase.from('cpt_items_proyecto').select('*').eq('proyecto_id', proyectoId).order('orden'),
+      supabase.from('cpt_alocaciones').select('item_id,categoria,monto_usd').eq('proyecto_id', proyectoId)
+    ])
+    if (error) throw error
+    // compute real costs from alocaciones per item+categoria
+    const realMap = {}
+    for (const a of alocs||[]) {
+      if (!realMap[a.item_id]) realMap[a.item_id] = {}
+      realMap[a.item_id][a.categoria] = (realMap[a.item_id][a.categoria]||0) + (a.monto_usd||0)
+    }
+    return (data||[]).map(item => ({
+      ...item,
+      costos_real: realMap[item.id] || {} // {material: 600, mano_obra: 400, ...}
+    }))
+  },
+  getAlocaciones: async (proyectoId) => {
     const { data, error } = await supabase
-      .from('cpt_items_proyecto')
-      .select('*')
+      .from('cpt_alocaciones')
+      .select('*, cpt_oc(numero_oc,proveedor), cpt_items_proyecto(descripcion)')
       .eq('proyecto_id', proyectoId)
-      .order('orden')
+    if (error) throw error
+    return data || []
+  },
+  getAlocacionesByOC: async (ocId) => {
+    const { data, error } = await supabase
+      .from('cpt_alocaciones')
+      .select('*, cpt_items_proyecto(descripcion)')
+      .eq('oc_id', ocId)
     if (error) throw error
     return data || []
   },
@@ -404,7 +428,7 @@ function ModalEditarItem({ item, onClose, onSave }) {
   }
 
   const totalPres = CATS.reduce((s, cat) => s + (calcUSD(form.pres[cat]) || 0), 0)
-  const totalReal = CATS.reduce((s, cat) => s + (calcUSD(form.real[cat]) || 0), 0)
+  const totalReal = CATS.reduce((s, cat) => s + (item?.costos_real?.[cat]||0), 0)
   const precio    = Number(form.precio_cliente) || 0
   const cmPres    = precio > 0 ? ((precio - totalPres) / precio * 100).toFixed(1) : null
   const cmReal    = precio > 0 && totalReal > 0 ? ((precio - totalReal) / precio * 100).toFixed(1) : null
@@ -473,15 +497,13 @@ function ModalEditarItem({ item, onClose, onSave }) {
                       </div>
                       {p.moneda==='ARS' && <input type="number" value={p.fx} onChange={e=>setC('pres',cat,'fx',e.target.value)} placeholder="FX ej. 1400" style={{padding:'4px 7px',fontSize:11}} />}
                     </div>
-                    {/* Real */}
-                    <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                      <div style={{display:'grid',gridTemplateColumns:'70px 1fr',gap:4}}>
-                        <select value={r.moneda} onChange={e=>setC('real',cat,'moneda',e.target.value)} style={{padding:'4px 5px',fontSize:11}}>
-                          <option value="USD">USD</option><option value="ARS">ARS</option>
-                        </select>
-                        <input type="number" step="0.01" value={r.monto} onChange={e=>setC('real',cat,'monto',e.target.value)} placeholder="Monto" style={{padding:'4px 7px',fontSize:11}} />
-                      </div>
-                      {r.moneda==='ARS' && <input type="number" value={r.fx} onChange={e=>setC('real',cat,'fx',e.target.value)} placeholder="FX ej. 1425" style={{padding:'4px 7px',fontSize:11}} />}
+                    {/* Real — read only from alocaciones */}
+                    <div style={{display:'flex',flexDirection:'column',gap:4,justifyContent:'center'}}>
+                      {item?.costos_real?.[cat] > 0
+                        ? <div style={{padding:'8px 10px',background:'#F0FDF4',border:'1px solid #BBF7D0',borderRadius:6,fontFamily:'Courier New',fontSize:13,fontWeight:700,color:'#059669'}}>{fmtUSD(item.costos_real[cat])}</div>
+                        : <div style={{padding:'8px 10px',background:'#F8FAFC',border:'1px solid var(--border)',borderRadius:6,fontSize:11,color:'var(--muted)',fontStyle:'italic'}}>Sin alocaciones</div>
+                      }
+                      <div style={{fontSize:10,color:'var(--muted)'}}>Calculado desde OC alocadas</div>
                     </div>
                   </div>
                 </div>
@@ -565,7 +587,7 @@ function TabPresupuesto({ proyecto }) {
 
   const totalPrecio = items.reduce((s,i) => s + (i.precio_cliente||0), 0)
   const totalCostoPres = items.reduce((s,i) => s + CATS.reduce((sc,cat) => sc+(i.costos?.[cat]?.pres?.usd||0),0), 0)
-  const totalCostoReal = items.reduce((s,i) => s + CATS.reduce((sc,cat) => sc+(i.costos?.[cat]?.real?.usd||0),0), 0)
+  const totalCostoReal = items.reduce((s,i) => s + CATS.reduce((sc,cat) => sc+(i.costos_real?.[cat]||0),0), 0)
   const totalCosto = totalCostoReal > 0 ? totalCostoReal : totalCostoPres
   const cmTotal = totalPrecio > 0 ? ((totalPrecio - totalCosto) / totalPrecio * 100).toFixed(1) : null
 
@@ -598,7 +620,7 @@ function TabPresupuesto({ proyecto }) {
               )}
               {items.map(item => {
                 const costoPresTotal = CATS.reduce((s, cat) => s + (item.costos?.[cat]?.pres?.usd||0), 0)
-                const costoRealTotal = CATS.reduce((s, cat) => s + (item.costos?.[cat]?.real?.usd||0), 0)
+                const costoRealTotal = CATS.reduce((s, cat) => s + (item.costos_real?.[cat]||0), 0)
                 const costoTotal = costoRealTotal > 0 ? costoRealTotal : costoPresTotal
                 const margenUSD  = (item.precio_cliente||0) - costoTotal
                 const cm         = item.precio_cliente > 0 ? (margenUSD / item.precio_cliente * 100).toFixed(1) : null
@@ -608,14 +630,14 @@ function TabPresupuesto({ proyecto }) {
                     <td className="mono cb">{fmtUSD(item.precio_cliente)}</td>
                     {CATS.map(cat => {
                       const pUSD = item.costos?.[cat]?.pres?.usd
-                      const rUSD = item.costos?.[cat]?.real?.usd
+                      const rUSD = item.costos_real?.[cat] || null
                       const delta = pUSD!=null && rUSD!=null ? rUSD - pUSD : null
                       return (
                         <td key={cat} className="mono" style={{fontSize:11}}>
                           {pUSD!=null && <div style={{color:'var(--blue)'}}>{fmtUSD(pUSD)}</div>}
-                          {rUSD!=null && <div style={{color:'#059669'}}>{fmtUSD(rUSD)}</div>}
+                          {rUSD!=null && rUSD>0 && <div style={{color:'#059669'}}>{fmtUSD(rUSD)}</div>}
                           {delta!=null && <div style={{fontWeight:500,fontSize:10,color:delta<=0?'#059669':'#DC2626'}}>{delta<=0?'▲':'▼'} {fmtUSD(Math.abs(delta))}</div>}
-                          {pUSD==null && rUSD==null && <span style={{color:'var(--muted)'}}>—</span>}
+                          {pUSD==null && (rUSD==null||rUSD===0) && <span style={{color:'var(--muted)'}}>—</span>}
                         </td>
                       )
                     })}
@@ -679,20 +701,153 @@ function TabCostos({ proyecto }) {
   )
 }
 
+// ─── MODAL ALOCAR OC ─────────────────────────────────────────────────────────
+function ModalAlocar({ oc, proyecto, onClose, onSave }) {
+  const [items, setItems]         = useState([])
+  const [alocaciones, setAloc]    = useState([]) // existing alocaciones for this OC
+  const [loading, setLoading]     = useState(true)
+  const [saving, setSaving]       = useState(false)
+  const [form, setForm]           = useState({ item_id:'', categoria:'material', monto_usd:'', notas:'' })
+
+  const ocTotal = oc.monto_usd_sin_iva || 0
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [its, alocs] = await Promise.all([
+        api.getItems(proyecto.id),
+        api.getAlocacionesByOC(oc.id)
+      ])
+      setItems(its); setAloc(alocs)
+    } catch(e) { alert(e.message) }
+    finally { setLoading(false) }
+  }, [oc.id, proyecto.id])
+
+  useEffect(() => { load() }, [load])
+
+  const totalAlocado = alocaciones.reduce((s,a) => s + (a.monto_usd||0), 0)
+  const saldo = ocTotal - totalAlocado
+
+  const handleAdd = async (e) => {
+    e.preventDefault(); setSaving(true)
+    try {
+      const monto = Number(form.monto_usd)
+      if (monto > saldo + 0.01) { alert(`Superás el saldo disponible (${fmtUSD(saldo)})`); return }
+      const { error } = await supabase.from('cpt_alocaciones').insert({
+        proyecto_id: proyecto.id,
+        oc_id: oc.id,
+        item_id: form.item_id,
+        categoria: form.categoria,
+        monto_usd: monto,
+        notas: form.notas || null
+      })
+      if (error) { alert(error.message); return }
+      setForm({ item_id:'', categoria:'material', monto_usd:'', notas:'' })
+      await load()
+    } finally { setSaving(false) }
+  }
+
+  const handleDelete = async (id) => {
+    await supabase.from('cpt_alocaciones').delete().eq('id', id)
+    await load()
+  }
+
+  return (
+    <div className="overlay open" onClick={e => e.target===e.currentTarget && onClose()}>
+      <div className="modal" style={{width:620}}>
+        <h3>Alocar OC — {oc.numero_oc}</h3>
+        <div style={{display:'flex',justifyContent:'space-between',padding:'10px 14px',background:'#F8FAFC',border:'1px solid var(--border)',borderRadius:8,marginBottom:16,fontSize:13}}>
+          <span style={{color:'var(--muted)'}}>Proveedor: <strong style={{color:'var(--navy)'}}>{oc.proveedor}</strong></span>
+          <span style={{color:'var(--muted)'}}>Total OC: <strong className="cb">{fmtUSD(ocTotal)}</strong></span>
+          <span style={{color:'var(--muted)'}}>Alocado: <strong className="cg">{fmtUSD(totalAlocado)}</strong></span>
+          <span style={{color: saldo < 0.01 ? '#059669' : '#D97706', fontWeight:700}}>Saldo: {fmtUSD(saldo)}</span>
+        </div>
+
+        {/* Alocaciones existentes */}
+        {alocaciones.length > 0 && (
+          <div style={{marginBottom:16}}>
+            <div className="section-label">Alocaciones cargadas</div>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+              <thead><tr><th style={{padding:'6px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Ítem</th><th style={{padding:'6px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Categoría</th><th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>USD</th><th style={{width:32,borderBottom:'1px solid var(--border)'}}></th></tr></thead>
+              <tbody>
+                {alocaciones.map(a => (
+                  <tr key={a.id}>
+                    <td style={{padding:'6px 8px',fontSize:12}}>{a.cpt_items_proyecto?.descripcion}</td>
+                    <td style={{padding:'6px 8px'}}><span className={`tag t-${a.categoria==='material'?'blue':a.categoria==='mano_obra'?'orange':a.categoria==='instalacion'?'green':'red'}`}>{CATS_LABEL[a.categoria]}</span></td>
+                    <td style={{padding:'6px 8px',textAlign:'right',fontFamily:'Courier New',fontWeight:700,color:'#059669'}}>{fmtUSD(a.monto_usd)}</td>
+                    <td style={{padding:'4px'}}><button onClick={()=>handleDelete(a.id)} style={{background:'none',border:'none',color:'#DC2626',cursor:'pointer',fontSize:12}}>✕</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Agregar nueva alocación */}
+        {saldo > 0.01 && (
+          <form onSubmit={handleAdd}>
+            <div className="section-label">Nueva alocación — saldo disponible: {fmtUSD(saldo)}</div>
+            <div className="two-col" style={{marginBottom:8}}>
+              <div className="form-row">
+                <label>Ítem cotizado *</label>
+                <select required value={form.item_id} onChange={e=>setForm(f=>({...f,item_id:e.target.value}))}>
+                  <option value="">Seleccionar ítem...</option>
+                  {items.map(i=><option key={i.id} value={i.id}>{i.descripcion}</option>)}
+                </select>
+              </div>
+              <div className="form-row">
+                <label>Categoría *</label>
+                <select value={form.categoria} onChange={e=>setForm(f=>({...f,categoria:e.target.value}))}>
+                  {CATS.map(c=><option key={c} value={c}>{CATS_LABEL[c]}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="two-col" style={{marginBottom:0}}>
+              <div className="form-row">
+                <label>Monto USD *</label>
+                <input required type="number" step="0.01" value={form.monto_usd} onChange={e=>setForm(f=>({...f,monto_usd:e.target.value}))} placeholder={`máx. ${fmtUSD(saldo)}`} />
+              </div>
+              <div className="form-row">
+                <label>Notas</label>
+                <input value={form.notas} onChange={e=>setForm(f=>({...f,notas:e.target.value}))} placeholder="Opcional" />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn-ghost" onClick={onClose}>Cerrar</button>
+              <button type="submit" className="btn" disabled={saving||loading}>{saving?'Guardando...':'Alocar'}</button>
+            </div>
+          </form>
+        )}
+        {saldo <= 0.01 && (
+          <div className="alert alert-ok">✓ OC completamente alocada</div>
+        )}
+        {saldo > 0.01 && alocaciones.length > 0 && <div style={{height:8}} />}
+      </div>
+    </div>
+  )
+}
+
 function SubTabOC({ proyecto }) {
   const [ocs, setOcs]               = useState([])
   const [categorias, setCategorias] = useState([])
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
   const [modal, setModal]           = useState(false)
+  const [modalAlocar, setModalAlocar] = useState(null) // oc object
   const [saving, setSaving]         = useState(false)
   const [form, setForm] = useState({numero_oc:'',proveedor:'',categoria_id:'',descripcion:'',moneda:'USD',monto_sin_iva:'',iva_pct:'21',fx:'',fecha_emision:'',estado:'pendiente_aprobacion'})
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [o, c] = await Promise.all([api.getOCs(proyecto.id), api.getCategorias()])
-      setOcs(o); setCategorias(c)
+      const [o, c, alocs] = await Promise.all([api.getOCs(proyecto.id), api.getCategorias(), api.getAlocaciones(proyecto.id)])
+      // enrich ocs with alocado desde alocaciones (más preciso que la vista)
+      const alocMap = {}
+      for (const a of alocs) {
+        alocMap[a.oc_id] = (alocMap[a.oc_id]||0) + (a.monto_usd||0)
+      }
+      const enriched = o.map(oc => ({...oc, alocado_usd: alocMap[oc.id]||0, sin_alocar: (oc.monto_usd_sin_iva||0)-(alocMap[oc.id]||0)}))
+      setOcs(enriched); setCategorias(c)
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
   }, [proyecto.id])
@@ -732,7 +887,7 @@ function SubTabOC({ proyecto }) {
         </div>
         <div className="tbl-wrap">
           <table>
-            <thead><tr><th>#OC</th><th>Proveedor</th><th>Descripción</th><th>Moneda</th><th>USD s/IVA</th><th>USD c/IVA</th><th>Facturado</th><th>Pendiente</th><th>Emitida</th><th>Estado</th></tr></thead>
+            <thead><tr><th>#OC</th><th>Proveedor</th><th>Descripción</th><th>Moneda</th><th>USD s/IVA</th><th>Facturado</th><th>Pendiente</th><th>Alocado</th><th>Sin Alocar</th><th>Emitida</th><th>Estado</th><th></th></tr></thead>
             <tbody>
               {ocs.length===0 && <tr><td colSpan={10} className="state-msg">Sin OC — creá la primera</td></tr>}
               {ocs.map(o=>(
@@ -742,7 +897,6 @@ function SubTabOC({ proyecto }) {
                   <td style={{color:'var(--muted)',fontSize:11}}>{o.descripcion}</td>
                   <td className="mono">{o.moneda}</td>
                   <td className="mono">{fmtUSD(o.monto_usd_sin_iva)}</td>
-                  <td className="mono">{fmtUSD(o.monto_usd_con_iva)}</td>
                   <td>
                     <div style={{display:'flex',flexDirection:'column',gap:3}}>
                       <span className={`mono ${(o.pct_facturado||0)>=100?'cg':'cw'}`} style={{fontSize:11}}>{fmtUSD(o.facturado_usd)} ({o.pct_facturado||0}%)</span>
@@ -750,8 +904,13 @@ function SubTabOC({ proyecto }) {
                     </div>
                   </td>
                   <td className={`mono ${(o.saldo_usd||0)>0?'cw':'cg'}`}>{fmtUSD(o.saldo_usd)}</td>
+                  <td className="mono cg">{fmtUSD(o.alocado_usd)}</td>
+                  <td className={`mono ${(o.sin_alocar||0)>0.01?'cw':'cg'}`}>
+                    {(o.sin_alocar||0)>0.01 ? fmtUSD(o.sin_alocar) : <span style={{color:'#059669'}}>✓</span>}
+                  </td>
                   <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(o.fecha_emision)}</td>
                   <td><span className={`chip ${CHIP[o.estado]||'c-no'}`}>{safeReplace(o.estado)}</span></td>
+                  <td><button className="btn" style={{padding:'4px 10px',fontSize:10,whiteSpace:'nowrap'}} onClick={()=>setModalAlocar(o)}>Alocar →</button></td>
                 </tr>
               ))}
             </tbody>
@@ -762,6 +921,15 @@ function SubTabOC({ proyecto }) {
           <span style={{color:'var(--muted)'}}>Pendiente facturar: <strong className="cw">{fmtUSD(totalPend)}</strong></span>
         </div>
       </div>
+
+      {modalAlocar && (
+        <ModalAlocar
+          oc={modalAlocar}
+          proyecto={proyecto}
+          onClose={() => { setModalAlocar(null); load() }}
+          onSave={() => { setModalAlocar(null); load() }}
+        />
+      )}
 
       {modal && (
         <div className="overlay open" onClick={e=>e.target===e.currentTarget&&setModal(false)}>
