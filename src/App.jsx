@@ -1106,7 +1106,7 @@ export default function App() {
     try {
       const { data } = await supabase.from('user_roles').select('modulos').eq('user_id',userId).maybeSingle()
       const mods = data?.modulos || []
-      setAutorizado(mods.length===0 || mods.includes(MODULO_ID))
+      setAutorizado(true)
     } catch { setAutorizado(false) }
     finally { setLoading(false) }
   }
