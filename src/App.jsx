@@ -827,6 +827,61 @@ function ModalAlocar({ oc, proyecto, onClose, onSave }) {
   )
 }
 
+// ─── MODAL EDITAR OC ─────────────────────────────────────────────────────────
+function ModalEditarOC({ oc, categorias, onClose, onSave }) {
+  const [form, setForm] = useState({
+    numero_oc:    oc.numero_oc    || '',
+    proveedor:    oc.proveedor    || '',
+    descripcion:  oc.descripcion  || '',
+    moneda:       oc.moneda       || 'ARS',
+    monto_sin_iva: oc.monto_sin_iva || '',
+    iva_pct:      oc.iva_pct      ?? '21',
+    fx:           oc.fx           || '',
+    fecha_emision: oc.fecha_emision || '',
+    estado:       oc.estado       || 'activa',
+    categoria_id: oc.categoria_id || '',
+  })
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); setSaving(true)
+    try { await onSave(form) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="overlay open" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{width:560}}>
+        <h3>Editar OC — {oc.numero_oc}</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="two-col">
+            <div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} /></div>
+            <div className="form-row"><label>Proveedor *</label><input required value={form.proveedor} onChange={e=>setForm(f=>({...f,proveedor:e.target.value}))} /></div>
+          </div>
+          <div className="two-col">
+            <div className="form-row"><label>Categoría *</label><select required value={form.categoria_id} onChange={e=>setForm(f=>({...f,categoria_id:e.target.value}))}><option value="">Seleccionar...</option>{categorias.map(c=><option key={c.id} value={c.id}>{c.nombre}</option>)}</select></div>
+            <div className="form-row"><label>Estado</label><select value={form.estado} onChange={e=>setForm(f=>({...f,estado:e.target.value}))}><option value="pendiente_aprobacion">Pendiente aprobación</option><option value="aprobada">Aprobada</option><option value="activa">Activa</option><option value="completada">Completada</option><option value="cancelada">Cancelada</option></select></div>
+          </div>
+          <div className="form-row"><label>Descripción</label><input value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} /></div>
+          <div className="two-col">
+            <div className="form-row"><label>Moneda</label><select value={form.moneda} onChange={e=>setForm(f=>({...f,moneda:e.target.value}))}><option value="ARS">ARS</option><option value="USD">USD</option></select></div>
+            <div className="form-row"><label>FX {form.moneda==='USD'?'(no aplica)':'*'}</label><input type="number" value={form.fx} onChange={e=>setForm(f=>({...f,fx:e.target.value}))} disabled={form.moneda==='USD'} placeholder="ej. 1425" /></div>
+          </div>
+          <div className="two-col">
+            <div className="form-row"><label>Monto s/IVA ({form.moneda}) *</label><input required type="number" step="0.01" value={form.monto_sin_iva} onChange={e=>setForm(f=>({...f,monto_sin_iva:e.target.value}))} /></div>
+            <div className="form-row"><label>IVA %</label><select value={form.iva_pct} onChange={e=>setForm(f=>({...f,iva_pct:e.target.value}))}><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div>
+          </div>
+          <div className="form-row"><label>Fecha emisión</label><input type="date" value={form.fecha_emision} onChange={e=>setForm(f=>({...f,fecha_emision:e.target.value}))} /></div>
+          <div className="modal-footer">
+            <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
+            <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ─── MODAL NUEVA OC CON PDF PARSER ───────────────────────────────────────────
 function ModalNuevaOC({ categorias, form, setForm, saving, onClose, onSubmit }) {
   const [parsing, setParsing] = useState(false)
@@ -970,7 +1025,8 @@ function SubTabOC({ proyecto }) {
   const [loading, setLoading]       = useState(true)
   const [error, setError]           = useState(null)
   const [modal, setModal]           = useState(false)
-  const [modalAlocar, setModalAlocar] = useState(null) // oc object
+  const [modalAlocar, setModalAlocar] = useState(null)
+  const [modalEditar, setModalEditar] = useState(null) // oc object to edit
   const [saving, setSaving]         = useState(false)
   const [form, setForm] = useState({numero_oc:'',proveedor:'',categoria_id:'',descripcion:'',moneda:'USD',monto_sin_iva:'',iva_pct:'21',fx:'',fecha_emision:'',estado:'pendiente_aprobacion'})
 
@@ -1047,7 +1103,12 @@ function SubTabOC({ proyecto }) {
                   </td>
                   <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(o.fecha_emision)}</td>
                   <td><span className={`chip ${CHIP[o.estado]||'c-no'}`}>{safeReplace(o.estado)}</span></td>
-                  <td><button className="btn" style={{padding:'4px 10px',fontSize:10,whiteSpace:'nowrap'}} onClick={()=>setModalAlocar(o)}>Alocar →</button></td>
+                  <td>
+                    <div style={{display:'flex',gap:4}}>
+                      <button className="btn-ghost" style={{padding:'3px 8px',fontSize:10}} onClick={()=>setModalEditar(o)}>Editar</button>
+                      <button className="btn" style={{padding:'4px 10px',fontSize:10,whiteSpace:'nowrap'}} onClick={()=>setModalAlocar(o)}>Alocar →</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1058,6 +1119,31 @@ function SubTabOC({ proyecto }) {
           <span style={{color:'var(--muted)'}}>Pendiente facturar: <strong className="cw">{fmtUSD(totalPend)}</strong></span>
         </div>
       </div>
+
+      {modalEditar && (
+        <ModalEditarOC
+          oc={modalEditar}
+          categorias={categorias}
+          onClose={() => setModalEditar(null)}
+          onSave={async (data) => {
+            const { error } = await supabase.from('cpt_oc').update({
+              numero_oc: data.numero_oc,
+              proveedor: data.proveedor,
+              descripcion: data.descripcion,
+              moneda: data.moneda,
+              monto_sin_iva: Number(data.monto_sin_iva),
+              iva_pct: Number(data.iva_pct),
+              fx: Number(data.fx)||null,
+              fecha_emision: data.fecha_emision||null,
+              estado: data.estado,
+              categoria_id: data.categoria_id,
+            }).eq('id', modalEditar.id)
+            if (error) { alert(error.message); return }
+            setModalEditar(null)
+            await load()
+          }}
+        />
+      )}
 
       {modalAlocar && (
         <ModalAlocar
