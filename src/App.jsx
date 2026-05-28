@@ -119,6 +119,14 @@ const api = {
     if (error) throw error
     return data || []
   },
+  getAlocacionesResumen: async (proyectoId) => {
+    const { data, error } = await supabase
+      .from('cpt_alocaciones')
+      .select('planificacion, monto_usd, categoria, cpt_items_proyecto(descripcion), cpt_oc(numero_oc,proveedor)')
+      .eq('proyecto_id', proyectoId)
+    if (error) throw error
+    return data || []
+  },
   getAlertas: async (proyectoId) => {
     const { data, error } = await supabase.from('cpt_presupuesto_lineas').select('descripcion,monto_pres_usd,monto_real_usd').eq('proyecto_id',proyectoId).eq('estado','alerta')
     if (error) throw error
@@ -347,14 +355,16 @@ function LoginPage() {
 function TabOverview({ proyecto }) {
   const [pnl, setPnl]         = useState(null)
   const [alertas, setAlertas] = useState([])
+  const [noPlan, setNoPlan]   = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [p, a] = await Promise.all([api.getPNL(proyecto.id), api.getAlertas(proyecto.id)])
+      const [p, a, alocs] = await Promise.all([api.getPNL(proyecto.id), api.getAlertas(proyecto.id), api.getAlocacionesResumen(proyecto.id)])
       setPnl(p); setAlertas(a)
+      setNoPlan(alocs.filter(a => a.planificacion === 'no_planeado'))
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
   }, [proyecto.id])
@@ -396,7 +406,7 @@ function TabOverview({ proyecto }) {
           </div>
         </div>
         <div className="card">
-          <div className="card-hdr"><span className="card-title">Alertas</span></div>
+          <div className="card-hdr"><span className="card-title">Alertas de Costo</span></div>
           <div style={{padding:'14px 16px'}}>
             {alertas.length===0
               ? <div className="alert alert-ok">Sin alertas activas</div>
@@ -408,6 +418,30 @@ function TabOverview({ proyecto }) {
           </div>
         </div>
       </div>
+      {noPlan.length > 0 && (
+        <div className="card">
+          <div className="card-hdr">
+            <span className="card-title">⚠ Costos No Planeados</span>
+            <span style={{fontSize:12,color:'#92400E',fontWeight:700}}>{fmtUSD(noPlan.reduce((s,a)=>s+(a.monto_usd||0),0))} USD</span>
+          </div>
+          <div className="tbl-wrap" style={{maxHeight:220}}>
+            <table>
+              <thead><tr><th>OC</th><th>Proveedor</th><th>Ítem</th><th>Categoría</th><th style={{textAlign:'right'}}>USD</th></tr></thead>
+              <tbody>
+                {noPlan.map((a,i) => (
+                  <tr key={i} style={{background:'#FFFBEB'}}>
+                    <td className="mono" style={{color:'var(--blue)'}}>{a.cpt_oc?.numero_oc}</td>
+                    <td style={{fontSize:11}}>{a.cpt_oc?.proveedor}</td>
+                    <td style={{fontSize:11}}>{a.cpt_items_proyecto?.descripcion}</td>
+                    <td><span className={`tag t-${a.categoria==='material'?'blue':a.categoria==='mano_obra'?'orange':a.categoria==='instalacion'?'green':'red'}`}>{CATS_LABEL[a.categoria]}</span></td>
+                    <td className="mono cw" style={{textAlign:'right'}}>{fmtUSD(a.monto_usd)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </>
   )
 }
@@ -726,7 +760,7 @@ function ModalAlocar({ oc, proyecto, onClose, onSave }) {
   const [alocaciones, setAloc]    = useState([]) // existing alocaciones for this OC
   const [loading, setLoading]     = useState(true)
   const [saving, setSaving]       = useState(false)
-  const [form, setForm]           = useState({ item_id:'', categoria:'material', monto_usd:'', notas:'' })
+  const [form, setForm]           = useState({ item_id:'', categoria:'material', monto_usd:'', notas:'', planificacion:'planeado' })
 
   const ocTotal = oc.total_alocar_usd || oc.monto_usd_sin_iva || 0
 
@@ -758,7 +792,8 @@ function ModalAlocar({ oc, proyecto, onClose, onSave }) {
         item_id: form.item_id,
         categoria: form.categoria,
         monto_usd: monto,
-        notas: form.notas || null
+        notas: form.notas || null,
+        planificacion: form.planificacion || 'planeado'
       })
       if (error) { alert(error.message); return }
       setForm({ item_id:'', categoria:'material', monto_usd:'', notas:'' })
@@ -787,12 +822,13 @@ function ModalAlocar({ oc, proyecto, onClose, onSave }) {
           <div style={{marginBottom:16}}>
             <div className="section-label">Alocaciones cargadas</div>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
-              <thead><tr><th style={{padding:'6px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Ítem</th><th style={{padding:'6px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Categoría</th><th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>USD</th><th style={{width:32,borderBottom:'1px solid var(--border)'}}></th></tr></thead>
+              <thead><tr><th style={{padding:'6px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Ítem</th><th style={{padding:'6px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Categoría</th><th style={{padding:'6px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Plan.</th><th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>USD</th><th style={{width:32,borderBottom:'1px solid var(--border)'}}></th></tr></thead>
               <tbody>
                 {alocaciones.map(a => (
                   <tr key={a.id}>
                     <td style={{padding:'6px 8px',fontSize:12}}>{a.cpt_items_proyecto?.descripcion}</td>
                     <td style={{padding:'6px 8px'}}><span className={`tag t-${a.categoria==='material'?'blue':a.categoria==='mano_obra'?'orange':a.categoria==='instalacion'?'green':'red'}`}>{CATS_LABEL[a.categoria]}</span></td>
+                    <td style={{padding:'6px 8px'}}><span style={{fontSize:10,padding:'2px 6px',borderRadius:8,fontWeight:600,background:a.planificacion==='no_planeado'?'#FEF3C7':'#F3F4F6',color:a.planificacion==='no_planeado'?'#92400E':'#6B7280'}}>{a.planificacion==='no_planeado'?'⚠ No planeado':'✓ Planeado'}</span></td>
                     <td style={{padding:'6px 8px',textAlign:'right',fontFamily:'Courier New',fontWeight:700,color:'#059669'}}>{fmtUSD(a.monto_usd)}</td>
                     <td style={{padding:'4px'}}><button onClick={()=>handleDelete(a.id)} style={{background:'none',border:'none',color:'#DC2626',cursor:'pointer',fontSize:12}}>✕</button></td>
                   </tr>
