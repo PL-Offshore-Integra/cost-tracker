@@ -1168,15 +1168,23 @@ function SubTabOC({ proyecto }) {
     e.preventDefault(); setSaving(true)
     try {
       const { error } = await supabase.from('cpt_oc').insert({
-        ...form, proyecto_id:proyecto.id,
-        monto_sin_iva:Number(form.monto_sin_iva),
-        iva_pct:Number(form.iva_pct),
-        fx:Number(form.fx)||null,
-        cuit_proveedor: form.cuit_proveedor||null
+        proyecto_id: proyecto.id,
+        numero_oc: form.numero_oc,
+        proveedor: form.proveedor,
+        cuit_proveedor: form.cuit_proveedor||null,
+        categoria_id: form.categoria_id,
+        descripcion: form.descripcion,
+        moneda: form.moneda,
+        monto_sin_iva: Number(form.monto_sin_iva),
+        iva_pct: Number(form.iva_pct),
+        fx: Number(form.fx)||null,
+        fecha_emision: form.fecha_emision||null,
+        estado: form.estado,
+        notas: form.notas||null,
       })
       if (error) { alert(error.message); return }
       setModal(false)
-      setForm({numero_oc:'',proveedor:'',categoria_id:'',descripcion:'',moneda:'USD',monto_sin_iva:'',iva_pct:'21',fx:'',fecha_emision:'',estado:'pendiente_aprobacion'})
+      setForm({numero_oc:'',proveedor:'',cuit_proveedor:'',categoria_id:'',descripcion:'',moneda:'USD',monto_sin_iva:'',iva_pct:'21',fx:'',fecha_emision:'',estado:'pendiente_aprobacion'})
       await load()
     } finally { setSaving(false) }
   }
