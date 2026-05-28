@@ -433,7 +433,7 @@ function TabOverview({ proyecto }) {
                     <td className="mono" style={{color:'var(--blue)'}}>{a.cpt_oc?.numero_oc}</td>
                     <td style={{fontSize:11}}>{a.cpt_oc?.proveedor}</td>
                     <td style={{fontSize:11}}>{a.cpt_items_proyecto?.descripcion}</td>
-                    <td><span className={`tag t-${a.categoria==='material'?'blue':a.categoria==='mano_obra'?'orange':a.categoria==='instalacion'?'green':'red'}`}>{CATS_LABEL[a.categoria]}</span></td>
+                    <td><span className={`tag t-${a.categoria==='material'?'blue':a.categoria==='mano_obra'?'orange':a.categoria==='instalacion'?'green':a.categoria==='consumibles'?'red':a.categoria==='alquiler'?'purple':'orange'}`}>{CATS_LABEL[a.categoria]}</span></td>
                     <td className="mono cw" style={{textAlign:'right'}}>{fmtUSD(a.monto_usd)}</td>
                   </tr>
                 ))}
@@ -447,8 +447,8 @@ function TabOverview({ proyecto }) {
 }
 
 // ─── TAB PRESUPUESTO ──────────────────────────────────────────────────────────
-const CATS = ['material', 'mano_obra', 'instalacion', 'consumibles']
-const CATS_LABEL = { material: 'Material', mano_obra: 'Mano de Obra', instalacion: 'Instalación', consumibles: 'Consumibles' }
+const CATS = ['material', 'mano_obra', 'instalacion', 'consumibles', 'alquiler', 'mob_demob']
+const CATS_LABEL = { material: 'Material', mano_obra: 'Mano de Obra', instalacion: 'Instalación', consumibles: 'Consumibles', alquiler: 'Alquiler', mob_demob: 'Mob/Demob' }
 
 function ModalEditarItem({ item, onClose, onSave }) {
   const emptyC = () => ({ moneda:'USD', monto:'', fx:'' })
@@ -500,7 +500,7 @@ function ModalEditarItem({ item, onClose, onSave }) {
     } finally { setSaving(false) }
   }
 
-  const CAT_COLORS = { material:'#EFF6FF', mano_obra:'#FEF3C7', instalacion:'#F0FDF4', consumibles:'#FEF2F2' }
+  const CAT_COLORS = { material:'#EFF6FF', mano_obra:'#FEF3C7', instalacion:'#F0FDF4', consumibles:'#FEF2F2', alquiler:'#F5F3FF', mob_demob:'#FFF7ED' }
 
   return (
     <div className="overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -661,6 +661,8 @@ function TabPresupuesto({ proyecto }) {
                 <th style={{background:'#FEF3C7'}}>Mano de Obra</th>
                 <th style={{background:'#F0FDF4'}}>Instalación</th>
                 <th style={{background:'#FEF2F2'}}>Consumibles</th>
+                <th style={{background:'#F5F3FF'}}>Alquiler</th>
+                <th style={{background:'#FFF7ED'}}>Mob/Demob</th>
                 <th>Costo Total</th>
                 <th>Margen $</th>
                 <th>CM %</th>
@@ -695,14 +697,20 @@ function TabPresupuesto({ proyecto }) {
                       )
                     })}
                     <td className="mono" style={{fontSize:11}}>
-                      {costoPresTotal>0&&<div style={{color:'var(--blue)'}}>{fmtUSD(item.precio_cliente-costoPresTotal)}</div>}
-                      {costoRealTotal>0&&<div style={{color:'#059669',fontWeight:700}}>{fmtUSD(item.precio_cliente-costoRealTotal)}</div>}
-                      {costoPresTotal>0&&costoRealTotal>0&&(()=>{const d=(item.precio_cliente-costoRealTotal)-(item.precio_cliente-costoPresTotal);return <div style={{fontWeight:500,fontSize:11,color:d>=0?'#059669':'#DC2626'}}>{d>=0?'▲':'▼'} {fmtUSD(Math.abs(d))}</div>})()}
+                      {costoPresTotal>0&&<div style={{color:'var(--blue)'}}>{fmtUSD(costoPresTotal)}</div>}
+                      {costoRealTotal>0&&<div style={{color:'#059669',fontWeight:600}}>{fmtUSD(costoRealTotal)}</div>}
+                      {costoPresTotal>0&&costoRealTotal>0&&(()=>{const d=costoRealTotal-costoPresTotal;return <div style={{fontWeight:500,fontSize:10,color:d<=0?'#059669':'#DC2626'}}>{d<=0?'▲':'▼'} {fmtUSD(Math.abs(d))}</div>})()}
+                      {costoPresTotal===0&&costoRealTotal===0&&<span style={{color:'var(--muted)'}}>—</span>}
+                    </td>
+                    <td className="mono" style={{fontSize:11}}>
+                      {costoPresTotal>0&&item.precio_cliente>0&&<div style={{color:'var(--blue)'}}>{fmtUSD((item.precio_cliente||0)-costoPresTotal)}</div>}
+                      {costoRealTotal>0&&item.precio_cliente>0&&<div style={{color:'#059669',fontWeight:600}}>{fmtUSD((item.precio_cliente||0)-costoRealTotal)}</div>}
+                      {costoPresTotal>0&&costoRealTotal>0&&item.precio_cliente>0&&(()=>{const d=((item.precio_cliente||0)-costoRealTotal)-((item.precio_cliente||0)-costoPresTotal);return <div style={{fontWeight:500,fontSize:10,color:d>=0?'#059669':'#DC2626'}}>{d>=0?'▲':'▼'} {fmtUSD(Math.abs(d))}</div>})()}
                     </td>
                     <td style={{fontSize:11}}>
                       {costoPresTotal>0&&item.precio_cliente>0&&<div style={{color:'var(--blue)',fontWeight:600}}>{(((item.precio_cliente||0)-costoPresTotal)/item.precio_cliente*100).toFixed(1)}%</div>}
-                      {costoRealTotal>0&&item.precio_cliente>0&&(()=>{const cmR=(((item.precio_cliente||0)-costoRealTotal)/item.precio_cliente*100);return <div style={{fontWeight:800,color:cmR>=30?'#059669':cmR>=15?'#D97706':'#DC2626'}}>{cmR.toFixed(1)}%</div>})()}
-                      {costoPresTotal>0&&costoRealTotal>0&&item.precio_cliente>0&&(()=>{const d=((item.precio_cliente-costoRealTotal)-(item.precio_cliente-costoPresTotal))/item.precio_cliente*100;return <div style={{fontWeight:500,fontSize:11,color:d>=0?'#059669':'#DC2626'}}>{d>=0?'▲':'▼'} {Math.abs(d).toFixed(1)}pp</div>})()}
+                      {costoRealTotal>0&&item.precio_cliente>0&&(()=>{const cmR=(((item.precio_cliente||0)-costoRealTotal)/item.precio_cliente*100);return <div style={{fontWeight:700,color:cmR>=30?'#059669':cmR>=15?'#D97706':'#DC2626'}}>{cmR.toFixed(1)}%</div>})()}
+                      {costoPresTotal>0&&costoRealTotal>0&&item.precio_cliente>0&&(()=>{const d=((item.precio_cliente-costoRealTotal)-(item.precio_cliente-costoPresTotal))/item.precio_cliente*100;return <div style={{fontWeight:500,fontSize:10,color:d>=0?'#059669':'#DC2626'}}>{d>=0?'▲':'▼'} {Math.abs(d).toFixed(1)}pp</div>})()}
                     </td>
                     <td>
                       <div style={{display:'flex',gap:4}}>
