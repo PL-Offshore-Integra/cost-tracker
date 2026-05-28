@@ -894,7 +894,7 @@ function ModalAlocar({ oc, proyecto, onClose, onSave }) {
 }
 
 // ─── MODAL EDITAR OC ─────────────────────────────────────────────────────────
-function ModalEditarOC({ oc, categorias, onClose, onSave }) {
+function ModalEditarOC({ oc, categorias, onClose, onSave, onDelete }) {
   const [form, setForm] = useState({
     numero_oc:    oc.numero_oc    || '',
     proveedor:    oc.proveedor    || '',
@@ -918,7 +918,10 @@ function ModalEditarOC({ oc, categorias, onClose, onSave }) {
   return (
     <div className="overlay open" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal" style={{width:560}}>
-        <h3>Editar OC — {oc.numero_oc}</h3>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+          <h3 style={{margin:0}}>Editar OC — {oc.numero_oc}</h3>
+          <button type="button" onClick={onClose} style={{background:'none',border:'none',fontSize:20,cursor:'pointer',color:'var(--muted)',lineHeight:1}}>✕</button>
+        </div>
         <form onSubmit={handleSubmit}>
           <div className="two-col">
             <div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} /></div>
@@ -938,9 +941,17 @@ function ModalEditarOC({ oc, categorias, onClose, onSave }) {
             <div className="form-row"><label>IVA %</label><select value={form.iva_pct} onChange={e=>setForm(f=>({...f,iva_pct:e.target.value}))}><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div>
           </div>
           <div className="form-row"><label>Fecha emisión</label><input type="date" value={form.fecha_emision} onChange={e=>setForm(f=>({...f,fecha_emision:e.target.value}))} /></div>
-          <div className="modal-footer">
-            <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
-            <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
+          <div className="modal-footer" style={{justifyContent:'space-between'}}>
+            <button type="button" onClick={async ()=>{
+              if(!confirm('¿Eliminar esta OC? También se eliminarán sus alocaciones.')) return
+              await onDelete()
+            }} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}>
+              🗑 Eliminar OC
+            </button>
+            <div style={{display:'flex',gap:8}}>
+              <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
+              <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
+            </div>
           </div>
         </form>
       </div>
@@ -1209,6 +1220,14 @@ function SubTabOC({ proyecto }) {
               categoria_id: data.categoria_id,
             }).eq('id', modalEditar.id)
             if (error) { alert(error.message); return }
+            setModalEditar(null)
+            await load()
+          }}
+          onDelete={async () => {
+            const { error: e1 } = await supabase.from('cpt_alocaciones').delete().eq('oc_id', modalEditar.id)
+            if (e1) { alert(e1.message); return }
+            const { error: e2 } = await supabase.from('cpt_oc').delete().eq('id', modalEditar.id)
+            if (e2) { alert(e2.message); return }
             setModalEditar(null)
             await load()
           }}
