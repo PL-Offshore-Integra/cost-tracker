@@ -353,8 +353,8 @@ function LoginPage() {
 
 // ─── TAB OVERVIEW ─────────────────────────────────────────────────────────────
 function TabOverview({ proyecto }) {
-  const [pnl, setPnl]         = useState(null)
-  const [alertas, setAlertas] = useState([])
+  const [items, setItems]     = useState([])
+  const [fventa, setFventa]   = useState([])
   const [noPlan, setNoPlan]   = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
@@ -362,8 +362,12 @@ function TabOverview({ proyecto }) {
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [p, a, alocs] = await Promise.all([api.getPNL(proyecto.id), api.getAlertas(proyecto.id), api.getAlocacionesResumen(proyecto.id)])
-      setPnl(p); setAlertas(a)
+      const [its, fv, alocs] = await Promise.all([
+        api.getItems(proyecto.id),
+        api.getFacturasVenta(proyecto.id),
+        api.getAlocacionesResumen(proyecto.id),
+      ])
+      setItems(its); setFventa(fv)
       setNoPlan(alocs.filter(a => a.planificacion === 'no_planeado'))
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
@@ -374,22 +378,23 @@ function TabOverview({ proyecto }) {
   if (loading) return <div className="state-msg">Cargando overview...</div>
   if (error)   return <div className="alert alert-err">Error: {error}</div>
 
-  const ingreso   = pnl?.ingreso_cotizado_usd    || 0
-  const costoPres = pnl?.costo_presupuestado_usd || 0
-  const costoReal = pnl?.costo_real_confirmado_usd || 0
-  const cobrado   = pnl?.ingreso_cobrado_usd     || 0
-  const mbPct     = pnl?.margen_budget_pct       || 0
-  const mfPct     = pnl?.margen_forecast_pct     || 0
-  const cm        = ingreso > 0 ? ((ingreso - costoReal) / ingreso * 100).toFixed(1) : 0
+  // KPIs calculados desde items y alocaciones
+  const ingreso    = items.reduce((s,i) => s + (i.precio_cliente||0), 0)
+  const costoPres  = items.reduce((s,i) => s + CATS.reduce((sc,cat) => sc+(i.costos?.[cat]?.pres?.usd||0),0), 0)
+  const costoReal  = items.reduce((s,i) => s + CATS.reduce((sc,cat) => sc+(i.costos_real?.[cat]||0),0), 0)
+  const cobrado    = fventa.reduce((s,f) => s + (f.monto_cobrado||0), 0)
+  const cm         = ingreso > 0 ? ((ingreso - costoReal) / ingreso * 100).toFixed(1) : 0
+  const cmPres     = ingreso > 0 ? ((ingreso - costoPres) / ingreso * 100).toFixed(1) : 0
+  const noPlanTotal = noPlan.reduce((s,a) => s+(a.monto_usd||0), 0)
 
   return (
     <>
       <div className="kpi-row">
         <div className="kpi"><div className="kpi-lbl">Ingresos Cotizados</div><div className="kpi-val cb">{fmtUSD(ingreso)}</div><div className="kpi-sub">USD · Propuesta Cliente</div></div>
-        <div className="kpi"><div className="kpi-lbl">Costo Presupuestado</div><div className="kpi-val">{fmtUSD(costoPres)}</div><div className="kpi-sub">USD · todas las líneas</div></div>
-        <div className="kpi"><div className="kpi-lbl">Costo Real</div><div className="kpi-val cw">{fmtUSD(costoReal)}</div><div className="kpi-sub">OC + facturas cargadas</div></div>
+        <div className="kpi"><div className="kpi-lbl">Costo Presupuestado</div><div className="kpi-val">{fmtUSD(costoPres)}</div><div className="kpi-sub">CM pres: {cmPres}%</div></div>
+        <div className="kpi"><div className="kpi-lbl">Costo Real</div><div className="kpi-val cw">{fmtUSD(costoReal)}</div><div className="kpi-sub">Desde alocaciones</div></div>
         <div className="kpi"><div className="kpi-lbl">Margen Contribución</div><div className="kpi-val cg">{cm}%</div><div className="kpi-sub">(Ingreso − Costo Real) / Ingreso</div></div>
-        <div className="kpi"><div className="kpi-lbl">Margen Forecast</div><div className="kpi-val cg" style={{fontSize:24}}>{mfPct}%</div><div className="kpi-sub">Con costos reales</div></div>
+        <div className="kpi"><div className="kpi-lbl">Cobrado</div><div className="kpi-val cb" style={{fontSize:20}}>{fmtUSD(cobrado)}</div><div className="kpi-sub">de {fmtUSD(ingreso)} cotizados</div></div>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
         <div className="card">
@@ -400,21 +405,41 @@ function TabOverview({ proyecto }) {
               <div className="prog-wrap"><div className="prog" style={{width:ingreso>0?`${Math.min(cobrado/ingreso*100,100)}%`:'0%',background:'linear-gradient(90deg,#047857,#10b981)'}} /></div>
             </div>
             <div>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:5,fontSize:12}}><span style={{color:'var(--muted)'}}>Costo ejecutado vs Presupuesto</span><strong>{fmtUSD(costoReal)} / {fmtUSD(costoPres)}</strong></div>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:5,fontSize:12}}><span style={{color:'var(--muted)'}}>Costo real vs Presupuesto</span><strong>{fmtUSD(costoReal)} / {fmtUSD(costoPres)}</strong></div>
               <div className="prog-wrap"><div className="prog" style={{width:costoPres>0?`${Math.min(costoReal/costoPres*100,100)}%`:'0%',background:'linear-gradient(90deg,#1a4a7a,#235C96)'}} /></div>
             </div>
+            {noPlanTotal > 0 && (
+              <div style={{display:'flex',justifyContent:'space-between',padding:'8px 10px',background:'#FFFBEB',border:'1px solid #FDE68A',borderRadius:6,fontSize:12}}>
+                <span style={{color:'#92400E'}}>⚠ Costos no planeados</span>
+                <strong style={{color:'#92400E'}}>{fmtUSD(noPlanTotal)}</strong>
+              </div>
+            )}
           </div>
         </div>
         <div className="card">
-          <div className="card-hdr"><span className="card-title">Alertas de Costo</span></div>
-          <div style={{padding:'14px 16px'}}>
-            {alertas.length===0
-              ? <div className="alert alert-ok">Sin alertas activas</div>
-              : alertas.map((a,i)=>{
-                  const delta = a.monto_real_usd&&a.monto_pres_usd?((a.monto_real_usd-a.monto_pres_usd)/a.monto_pres_usd*100).toFixed(1):null
-                  return <div key={i} className="alert alert-err">{a.descripcion}{delta&&<strong style={{marginLeft:8}}>+{delta}%</strong>}</div>
-                })
-            }
+          <div className="card-hdr"><span className="card-title">Resumen por Ítem</span></div>
+          <div className="tbl-wrap" style={{maxHeight:200}}>
+            <table>
+              <thead><tr><th>Ítem</th><th>Precio</th><th>Costo Real</th><th>CM%</th></tr></thead>
+              <tbody>
+                {items.length===0 && <tr><td colSpan={4} className="state-msg">Sin ítems</td></tr>}
+                {items.map(item => {
+                  const cr = CATS.reduce((s,cat) => s+(item.costos_real?.[cat]||0), 0)
+                  const cmI = item.precio_cliente>0 ? ((item.precio_cliente-cr)/item.precio_cliente*100).toFixed(1) : null
+                  const cp = CATS.reduce((s,cat) => s+(item.costos?.[cat]?.pres?.usd||0), 0)
+                  const cmP = item.precio_cliente>0&&cp>0 ? ((item.precio_cliente-cp)/item.precio_cliente*100) : null
+                  const improved = cmP!=null&&cmI!=null ? Number(cmI)>=cmP : null
+                  return (
+                    <tr key={item.id}>
+                      <td style={{fontSize:11,fontWeight:500}}>{item.descripcion}</td>
+                      <td className="mono" style={{fontSize:11}}>{fmtUSD(item.precio_cliente)}</td>
+                      <td className="mono" style={{fontSize:11,color:cr>0?'var(--text)':'var(--muted)'}}>{cr>0?fmtUSD(cr):'—'}</td>
+                      <td style={{fontSize:11,fontWeight:700,color:improved===null?'var(--muted)':improved?'#059669':'#DC2626'}}>{cmI!=null?cmI+'%':'—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
