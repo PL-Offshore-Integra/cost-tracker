@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 
-const PORTAL_URL = 'https://integra.terra-mare.com.ar'
+const PORTAL_URL = 'https://erp-portal-fawn.vercel.app/'
 const MODULO_ID  = 'cost-tracker'
 
 // ─── API ──────────────────────────────────────────────────────────────────────
