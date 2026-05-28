@@ -863,9 +863,16 @@ function ModalAlocar({ oc, proyecto, onClose, onSave }) {
                 <input required type="number" step="0.01" value={form.monto_usd} onChange={e=>setForm(f=>({...f,monto_usd:e.target.value}))} placeholder={`máx. ${fmtUSD(saldo)}`} />
               </div>
               <div className="form-row">
-                <label>Notas</label>
-                <input value={form.notas} onChange={e=>setForm(f=>({...f,notas:e.target.value}))} placeholder="Opcional" />
+                <label>Planificación *</label>
+                <select value={form.planificacion} onChange={e=>setForm(f=>({...f,planificacion:e.target.value}))}>
+                  <option value="planeado">✓ Planeado</option>
+                  <option value="no_planeado">⚠ No planeado</option>
+                </select>
               </div>
+            </div>
+            <div className="form-row">
+              <label>Notas</label>
+              <input value={form.notas} onChange={e=>setForm(f=>({...f,notas:e.target.value}))} placeholder="Opcional" />
             </div>
             <div className="modal-footer">
               <button type="button" className="btn-ghost" onClick={onClose}>Cerrar</button>
