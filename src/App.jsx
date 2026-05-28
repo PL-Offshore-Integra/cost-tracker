@@ -860,7 +860,11 @@ function ModalAlocar({ oc, proyecto, onClose, onSave }) {
             <div className="two-col" style={{marginBottom:0}}>
               <div className="form-row">
                 <label>Monto USD *</label>
-                <input required type="number" step="0.01" value={form.monto_usd} onChange={e=>setForm(f=>({...f,monto_usd:e.target.value}))} placeholder={`máx. ${fmtUSD(saldo)}`} />
+                <div style={{display:'flex',gap:6,alignItems:'center'}}>
+                  <input required type="number" step="0.01" value={form.monto_usd} onChange={e=>setForm(f=>({...f,monto_usd:e.target.value}))} placeholder={`máx. ${fmtUSD(saldo)}`} style={{flex:1}} />
+                  <input type="number" min="0" max="100" step="1" placeholder="%" onChange={e=>{const p=Number(e.target.value);if(p>0&&p<=100)setForm(f=>({...f,monto_usd:(saldo*p/100).toFixed(2)}))}} style={{width:64,textAlign:'center'}} />
+                  <span style={{fontSize:11,color:'var(--muted)',whiteSpace:'nowrap'}}>% del saldo</span>
+                </div>
               </div>
               <div className="form-row">
                 <label>Planificación *</label>
