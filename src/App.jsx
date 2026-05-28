@@ -906,6 +906,7 @@ function ModalEditarOC({ oc, categorias, onClose, onSave, onDelete }) {
     fecha_emision: oc.fecha_emision || '',
     estado:       oc.estado       || 'activa',
     categoria_id: oc.categoria_id || '',
+    cuit_proveedor: oc.cuit_proveedor || '',
   })
   const [saving, setSaving] = useState(false)
 
@@ -927,6 +928,7 @@ function ModalEditarOC({ oc, categorias, onClose, onSave, onDelete }) {
             <div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} /></div>
             <div className="form-row"><label>Proveedor *</label><input required value={form.proveedor} onChange={e=>setForm(f=>({...f,proveedor:e.target.value}))} /></div>
           </div>
+          <div className="form-row"><label>CUIT Proveedor</label><input value={form.cuit_proveedor} onChange={e=>setForm(f=>({...f,cuit_proveedor:e.target.value}))} placeholder="ej. 30-70733736-9" /></div>
           <div className="two-col">
             <div className="form-row"><label>Categoría *</label><select required value={form.categoria_id} onChange={e=>setForm(f=>({...f,categoria_id:e.target.value}))}><option value="">Seleccionar...</option>{categorias.map(c=><option key={c.id} value={c.id}>{c.nombre}</option>)}</select></div>
             <div className="form-row"><label>Estado</label><select value={form.estado} onChange={e=>setForm(f=>({...f,estado:e.target.value}))}><option value="pendiente_aprobacion">Pendiente aprobación</option><option value="aprobada">Aprobada</option><option value="activa">Activa</option><option value="completada">Completada</option><option value="cancelada">Cancelada</option></select></div>
@@ -1105,7 +1107,7 @@ function SubTabOC({ proyecto }) {
   const [modalAlocar, setModalAlocar] = useState(null)
   const [modalEditar, setModalEditar] = useState(null) // oc object to edit
   const [saving, setSaving]         = useState(false)
-  const [form, setForm] = useState({numero_oc:'',proveedor:'',categoria_id:'',descripcion:'',moneda:'USD',monto_sin_iva:'',iva_pct:'21',fx:'',fecha_emision:'',estado:'pendiente_aprobacion'})
+  const [form, setForm] = useState({numero_oc:'',proveedor:'',cuit_proveedor:'',categoria_id:'',descripcion:'',moneda:'USD',monto_sin_iva:'',iva_pct:'21',fx:'',fecha_emision:'',estado:'pendiente_aprobacion'})
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -1131,7 +1133,8 @@ function SubTabOC({ proyecto }) {
         ...form, proyecto_id:proyecto.id,
         monto_sin_iva:Number(form.monto_sin_iva),
         iva_pct:Number(form.iva_pct),
-        fx:Number(form.fx)||null
+        fx:Number(form.fx)||null,
+        cuit_proveedor: form.cuit_proveedor||null
       })
       if (error) { alert(error.message); return }
       setModal(false)
@@ -1218,6 +1221,7 @@ function SubTabOC({ proyecto }) {
               fecha_emision: data.fecha_emision||null,
               estado: data.estado,
               categoria_id: data.categoria_id,
+              cuit_proveedor: data.cuit_proveedor||null,
             }).eq('id', modalEditar.id)
             if (error) { alert(error.message); return }
             setModalEditar(null)
@@ -1265,7 +1269,7 @@ function SubTabFacturasCompra({ proyecto }) {
   const [error, setError]       = useState(null)
   const [modal, setModal]       = useState(false)
   const [saving, setSaving]     = useState(false)
-  const [formC, setFormC] = useState({numero_factura:'',oc_id:'',proveedor:'',moneda:'USD',monto_sin_iva:'',iva_pct:'21',fx:'',fecha_factura:'',fecha_vto_pago:''})
+  const [formC, setFormC] = useState({numero_factura:'',oc_id:'',proveedor:'',cuit_proveedor:'',moneda:'USD',monto_sin_iva:'',iva_pct:'21',fx:'',fecha_factura:'',fecha_vto_pago:''})
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -1294,7 +1298,8 @@ function SubTabFacturasCompra({ proyecto }) {
         ...formC, proyecto_id:proyecto.id,
         monto_sin_iva:Number(formC.monto_sin_iva),
         iva_pct:Number(formC.iva_pct),
-        fx:Number(formC.fx)||null
+        fx:Number(formC.fx)||null,
+        cuit_proveedor: formC.cuit_proveedor||null
       })
       if (error) { alert(error.message); return }
       setModal(false)
@@ -1358,6 +1363,7 @@ function SubTabFacturasCompra({ proyecto }) {
               </div>
               {ocSel&&<div className="alert alert-info" style={{marginBottom:12}}>{ocSel.numero_oc} — Saldo disponible: <strong>{fmtUSD(ocSel.saldo_usd)} USD</strong></div>}
               <div className="form-row"><label>Proveedor *</label><input required value={formC.proveedor} onChange={e=>setFormC(f=>({...f,proveedor:e.target.value}))} /></div>
+              <div className="form-row"><label>CUIT Proveedor</label><input value={formC.cuit_proveedor} onChange={e=>setFormC(f=>({...f,cuit_proveedor:e.target.value}))} placeholder="ej. 30-70733736-9" /></div>
               <div className="two-col">
                 <div className="form-row"><label>Moneda</label><select value={formC.moneda} onChange={e=>setFormC(f=>({...f,moneda:e.target.value}))}><option value="USD">USD</option><option value="ARS">ARS</option></select></div>
                 <div className="form-row"><label>FX {formC.moneda==='USD'?'(no aplica)':'*'}</label><input type="number" value={formC.fx} onChange={e=>setFormC(f=>({...f,fx:e.target.value}))} disabled={formC.moneda==='USD'} required={formC.moneda==='ARS'} placeholder="ej. 1428" /></div>
@@ -1405,6 +1411,7 @@ function SubTabFacturasVenta({ proyecto }) {
   const [saving, setSaving]   = useState(false)
   const [formV, setFormV] = useState({
     numero_factura:'', concepto:'', monto_usd:'',
+    cuit_cliente:'',
     fecha_emision:'', fecha_vto_cobro:'',
     fecha_proforma_planned:'', fecha_invoice_planned:'',
     notas:''
@@ -1427,6 +1434,7 @@ function SubTabFacturasVenta({ proyecto }) {
         numero_factura: formV.numero_factura || null,
         concepto: formV.concepto,
         monto_usd: Number(formV.monto_usd),
+        cuit_cliente: formV.cuit_cliente || null,
         fecha_emision: formV.fecha_emision || null,
         fecha_vto_cobro: formV.fecha_vto_cobro || null,
         notas: formV.notas || null,
@@ -1503,6 +1511,7 @@ function SubTabFacturasVenta({ proyecto }) {
             <form onSubmit={handleSave}>
               <div className="form-row"><label>Número</label><input value={formV.numero_factura} onChange={e=>setFormV(f=>({...f,numero_factura:e.target.value}))} placeholder="ej. FV-004 (vacío si no emitida)" /></div>
               <div className="form-row"><label>Concepto *</label><input required value={formV.concepto} onChange={e=>setFormV(f=>({...f,concepto:e.target.value}))} placeholder="ej. Anticipo 30% obra" /></div>
+              <div className="form-row"><label>CUIT Cliente</label><input value={formV.cuit_cliente} onChange={e=>setFormV(f=>({...f,cuit_cliente:e.target.value}))} placeholder="ej. 30-71234567-8" /></div>
               <div className="form-row"><label>Monto USD *</label><input required type="number" step="0.01" value={formV.monto_usd} onChange={e=>setFormV(f=>({...f,monto_usd:e.target.value}))} placeholder="0.00" /></div>
               <div className="two-col">
                 <div className="form-row"><label>Fecha emisión</label><input type="date" value={formV.fecha_emision} onChange={e=>setFormV(f=>({...f,fecha_emision:e.target.value}))} /></div>
