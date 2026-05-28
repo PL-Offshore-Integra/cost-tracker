@@ -30,7 +30,7 @@ const api = {
   getOCs: async (proyectoId) => {
     const { data, error } = await supabase
       .from('cpt_oc')
-      .select('id,proyecto_id,numero_oc,proveedor,descripcion,moneda,monto_sin_iva,iva_pct,fx,monto_usd_sin_iva,monto_usd_con_iva,fecha_emision,estado,categoria_id,cpt_categorias(nombre,color)')
+      .select('id,proyecto_id,numero_oc,proveedor,cuit_proveedor,descripcion,moneda,monto_sin_iva,iva_pct,fx,monto_usd_sin_iva,monto_usd_con_iva,fecha_emision,estado,categoria_id,cpt_categorias(nombre,color)')
       .eq('proyecto_id',proyectoId)
       .order('numero_oc')
     if (error) throw error
@@ -1157,7 +1157,7 @@ function SubTabOC({ proyecto }) {
       for (const a of alocs) {
         alocMap[a.oc_id] = (alocMap[a.oc_id]||0) + (a.monto_usd||0)
       }
-      const enriched = o.map(oc => ({...oc, alocado_usd: alocMap[oc.id]||0, sin_alocar: (oc.monto_usd_sin_iva||0)-(alocMap[oc.id]||0)}))
+      const enriched = o.map(oc => ({...oc, alocado_usd: alocMap[oc.id]||0, sin_alocar: (oc.total_alocar_usd||0)-(alocMap[oc.id]||0)}))
       setOcs(enriched); setCategorias(c)
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
