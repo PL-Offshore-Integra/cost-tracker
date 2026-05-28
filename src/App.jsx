@@ -1112,7 +1112,7 @@ function ModalNuevaOC({ categorias, form, setForm, saving, onClose, onSubmit }) 
             <div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} placeholder="ej. 2395" /></div>
             <div className="form-row"><label>Proveedor *</label><input required value={form.proveedor} onChange={e=>setForm(f=>({...f,proveedor:e.target.value}))} /></div>
           </div>
-          <div className="form-row"><label>CUIT Proveedor</label><input value={form.cuit_proveedor||''} onChange={e=>setForm(f=>({...f,cuit_proveedor:e.target.value}))} placeholder="ej. 30-70733736-9" /></div>
+          <div className="form-row"><label>CUIT Proveedor</label><input value={form.cuit_proveedor} onChange={e=>setForm(f=>({...f,cuit_proveedor:e.target.value}))} placeholder="ej. 30-70733736-9" /></div>
           <div className="two-col">
             <div className="form-row"><label>Categoría *</label><select required value={form.categoria_id} onChange={e=>setForm(f=>({...f,categoria_id:e.target.value}))}><option value="">Seleccionar...</option>{categorias.map(c=><option key={c.id} value={c.id}>{c.nombre}</option>)}</select></div>
             <div className="form-row"><label>Estado</label><select value={form.estado} onChange={e=>setForm(f=>({...f,estado:e.target.value}))}><option value="pendiente_aprobacion">Pendiente aprobación</option><option value="aprobada">Aprobada</option><option value="activa">Activa</option></select></div>
