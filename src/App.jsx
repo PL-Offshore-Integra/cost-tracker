@@ -923,7 +923,7 @@ function ModalEditarOC({ oc, categorias, onClose, onSave }) {
             <div className="form-row"><label>FX {form.moneda==='USD'?'(no aplica)':'*'}</label><input type="number" value={form.fx} onChange={e=>setForm(f=>({...f,fx:e.target.value}))} disabled={form.moneda==='USD'} placeholder="ej. 1425" /></div>
           </div>
           <div className="two-col">
-            <div className="form-row"><label>Monto s/IVA ({form.moneda}) *</label><input required type="number" step="0.01" value={form.monto_sin_iva} onChange={e=>setForm(f=>({...f,monto_sin_iva:e.target.value}))} /></div>
+            <div className="form-row"><label>Monto s/IVA ({form.moneda}) * — el sistema calcula c/IVA</label><input required type="number" step="0.01" value={form.monto_sin_iva} onChange={e=>setForm(f=>({...f,monto_sin_iva:e.target.value}))} /></div>
             <div className="form-row"><label>IVA %</label><select value={form.iva_pct} onChange={e=>setForm(f=>({...f,iva_pct:e.target.value}))}><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div>
           </div>
           <div className="form-row"><label>Fecha emisión</label><input type="date" value={form.fecha_emision} onChange={e=>setForm(f=>({...f,fecha_emision:e.target.value}))} /></div>
@@ -1135,7 +1135,7 @@ function SubTabOC({ proyecto }) {
         </div>
         <div className="tbl-wrap">
           <table>
-            <thead><tr><th>#OC</th><th>Proveedor</th><th>Descripción</th><th>Moneda</th><th>USD s/IVA</th><th>Facturado</th><th>Pendiente</th><th>Alocado</th><th>Sin Alocar</th><th>Emitida</th><th>Estado</th><th></th></tr></thead>
+            <thead><tr><th>#OC</th><th>Proveedor</th><th>Descripción</th><th>Moneda</th><th>Total USD c/IVA</th><th>Facturado</th><th>Alocado</th><th>Sin Alocar</th><th>Emitida</th><th>Estado</th><th></th></tr></thead>
             <tbody>
               {ocs.length===0 && <tr><td colSpan={10} className="state-msg">Sin OC — creá la primera</td></tr>}
               {ocs.map(o=>(
@@ -1144,17 +1144,13 @@ function SubTabOC({ proyecto }) {
                   <td style={{fontWeight:600}}>{o.proveedor}</td>
                   <td style={{color:'var(--muted)',fontSize:11}}>{o.descripcion}</td>
                   <td className="mono">{o.moneda}</td>
-                  <td className="mono">
-                    <div>{fmtUSD(o.monto_usd_sin_iva)}</div>
-                    <div style={{fontSize:10,color:'var(--muted)'}}>c/IVA: {fmtUSD(o.total_alocar_usd)}</div>
-                  </td>
+                  <td className="mono"><strong>{fmtUSD(o.total_alocar_usd)}</strong></td>
                   <td>
                     <div style={{display:'flex',flexDirection:'column',gap:3}}>
                       <span className={`mono ${(o.pct_facturado||0)>=100?'cg':'cw'}`} style={{fontSize:11}}>{fmtUSD(o.facturado_usd)} ({o.pct_facturado||0}%)</span>
                       <div className="prog-wrap" style={{width:80}}><div className="prog" style={{width:`${o.pct_facturado||0}%`,background:(o.pct_facturado||0)>=100?'#059669':'#235C96'}} /></div>
                     </div>
                   </td>
-                  <td className={`mono ${(o.saldo_usd||0)>0?'cw':'cg'}`}>{fmtUSD(o.saldo_usd)}</td>
                   <td className="mono cg">{fmtUSD(o.alocado_usd)}</td>
                   <td className={`mono ${(o.total_alocar_usd-o.alocado_usd)>0.01?'cw':'cg'}`}>
                     {(o.total_alocar_usd-o.alocado_usd)>0.01
@@ -1178,7 +1174,7 @@ function SubTabOC({ proyecto }) {
           </table>
         </div>
         <div className="tbl-foot">
-          <span style={{color:'var(--muted)'}}>Total: <strong style={{color:'var(--navy)'}}>{fmtUSD(totalOC)}</strong></span>
+          <span style={{color:'var(--muted)'}}>Total c/IVA: <strong style={{color:'var(--navy)'}}>{fmtUSD(ocs.reduce((s,o)=>s+(o.total_alocar_usd||0),0))}</strong></span>
           <span style={{color:'var(--muted)'}}>Pendiente facturar: <strong className="cw">{fmtUSD(totalPend)}</strong></span>
         </div>
       </div>
