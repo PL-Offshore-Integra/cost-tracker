@@ -261,35 +261,37 @@ textarea{resize:vertical;min-height:60px}
 .r-soon{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A}
 .r-ok{background:#F3F4F6;color:#6B7280;border:1px solid #E5E7EB}
 /* LOGIN */
-.login-wrap{min-height:100vh;display:flex;background:var(--navy);position:relative;overflow:hidden}
-.login-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(135deg,rgba(11,22,41,.92) 0%,rgba(11,22,41,.75) 60%,rgba(11,22,41,.92) 100%)}
-.login-lines{position:absolute;inset:0;z-index:0;background-image:linear-gradient(rgba(184,148,42,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(184,148,42,.04) 1px,transparent 1px);background-size:60px 60px}
+.login-page{min-height:100vh;display:flex;background:#0B1629;position:relative;overflow:hidden}
+.login-bg-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(135deg,rgba(11,22,41,0.92) 0%,rgba(11,22,41,0.75) 60%,rgba(11,22,41,0.92) 100%)}
+.login-bg-lines{position:absolute;inset:0;z-index:0;background-image:linear-gradient(rgba(26,122,110,0.06) 1px,transparent 1px),linear-gradient(90deg,rgba(26,122,110,0.06) 1px,transparent 1px);background-size:60px 60px}
 .login-split{position:relative;z-index:2;display:flex;width:100%}
-.login-left{flex:1;display:flex;flex-direction:column;justify-content:center;padding:80px 60px;border-right:1px solid rgba(184,148,42,.15)}
-.login-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:20px}
-.login-logo-row{display:flex;align-items:center;gap:14px;margin-bottom:20px}
-.login-logo-img{width:50px;height:50px;border-radius:12px;object-fit:cover;border:2px solid rgba(255,255,255,.15)}
-.login-title{font-size:50px;font-weight:900;color:#fff;line-height:.95;letter-spacing:-2px}
-.login-title span{color:var(--gold);display:block}
-.login-line{width:48px;height:3px;background:var(--gold);margin:18px 0}
-.login-sub{font-size:13px;color:rgba(255,255,255,.4);line-height:1.7;max-width:300px;font-style:italic}
-.login-right{width:420px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:60px 44px}
-.login-card{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(184,148,42,.2);border-radius:16px;padding:36px;backdrop-filter:blur(20px)}
-.login-card-title{font-size:15px;font-weight:700;color:#fff;margin-bottom:4px}
-.login-card-sub{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);letter-spacing:1px;margin-bottom:24px;text-transform:uppercase}
-.login-fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
-.login-fg label{font-size:9px;color:rgba(255,255,255,.4);letter-spacing:1px;text-transform:uppercase;font-weight:600}
-.login-fg input{border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 13px;font-size:13px;font-family:var(--sans);color:#fff;background:rgba(255,255,255,.06);outline:none;transition:border-color .15s;width:100%}
-.login-fg input::placeholder{color:rgba(255,255,255,.2)}
-.login-fg input:focus{border-color:var(--gold);background:rgba(255,255,255,.09)}
-.login-submit{width:100%;padding:11px;margin-top:8px;background:var(--gold);color:var(--navy);border:none;border-radius:8px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer}
-.login-submit:hover{background:var(--gold2)}
-.login-submit:disabled{opacity:.5;cursor:not-allowed}
-.login-err{background:rgba(239,68,68,.12);color:#FCA5A5;border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px 13px;font-size:12px;margin-bottom:12px}
-.login-foot{text-align:center;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.2);margin-top:16px;letter-spacing:1px}
-.login-back{text-align:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,.3);cursor:pointer;font-family:var(--mono)}
-.login-back:hover{color:var(--gold)}
-@media(max-width:640px){.login-left{display:none}.login-right{width:100%;padding:40px 24px}.kpi-row{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}.tabs{padding:0 16px}.main{padding:16px}.hdr-email{display:none}}
+.login-left{flex:1;display:flex;flex-direction:column;justify-content:center;padding:80px 60px;border-right:1px solid rgba(26,122,110,0.2)}
+.login-left-integra-wrap{margin-bottom:8px}
+.login-left-integra-img{height:340px;width:auto;object-fit:contain;opacity:0.95}
+.login-left-divider{width:100%;height:1px;background:rgba(255,255,255,0.1);margin:8px 0 20px}
+.login-left-company{display:flex;align-items:center;gap:14px;margin-bottom:4px}
+.login-left-company-logo{width:48px;height:48px;border-radius:50%;object-fit:contain;border:1.5px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05)}
+.login-left-company-name{font-size:20px;font-weight:800;color:#fff;letter-spacing:0.5px}
+.login-left-line{width:48px;height:3px;background:#1A7A6E;margin:20px 0}
+.login-left-sub{font-size:13px;color:rgba(255,255,255,0.45);line-height:1.7;max-width:320px;font-style:italic}
+.login-right{width:440px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:60px 48px}
+.login-card{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(184,148,42,0.2);border-radius:16px;padding:40px 36px;backdrop-filter:blur(20px)}
+.login-card-eyebrow{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:#B8942A;text-transform:uppercase;margin-bottom:10px}
+.login-card-title{font-size:16px;font-weight:700;color:#fff;margin-bottom:4px}
+.login-card-sub{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,0.35);letter-spacing:1px;margin-bottom:28px;text-transform:uppercase}
+.login-fg{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.login-fg label{font-size:9px;color:rgba(255,255,255,0.4);letter-spacing:1px;text-transform:uppercase;font-weight:600}
+.login-fg input{border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:11px 14px;font-size:13px;font-family:var(--sans);color:#fff;background:rgba(255,255,255,0.06);outline:none;transition:border-color .15s;width:100%}
+.login-fg input::placeholder{color:rgba(255,255,255,0.2)}
+.login-fg input:focus{border-color:#B8942A;background:rgba(255,255,255,0.09)}
+.login-btn{width:100%;padding:12px;margin-top:8px;background:#B8942A;color:#0B1629;border:none;border-radius:8px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;transition:background .15s;letter-spacing:.5px}
+.login-btn:hover{background:#D4AA3A}
+.login-btn:disabled{opacity:.5;cursor:not-allowed}
+.login-error{background:rgba(239,68,68,0.12);color:#FCA5A5;border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:14px}
+.login-footer{text-align:center;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.2);margin-top:20px;letter-spacing:1px}
+.login-back{text-align:center;margin-top:12px;font-size:11px;color:rgba(255,255,255,0.3);cursor:pointer;font-family:var(--mono)}
+.login-back:hover{color:#B8942A}
+@media(max-width:768px){.login-split{flex-direction:column}.login-left{padding:48px 32px 32px;border-right:none;border-bottom:1px solid rgba(26,122,110,0.2);align-items:center;text-align:center}.login-left-integra-img{height:200px;max-width:90vw}.login-left-line{margin:16px auto}.login-left-sub{max-width:100%}.login-right{width:100%;padding:32px 24px 48px}.login-card{padding:28px 24px}.kpi-row{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}.tabs{padding:0 16px}.main{padding:16px}.hdr-email{display:none}}
 `
 
 // ─── REMINDER HELPER ─────────────────────────────────────────────────────────
@@ -323,26 +325,32 @@ function LoginPage() {
   return (
     <>
       <style>{CSS}</style>
-      <div className="login-wrap">
-        <div className="login-lines" /><div className="login-overlay" />
+      <div className="login-page">
+        <div className="login-bg-lines" /><div className="login-bg-overlay" />
         <div className="login-split">
           <div className="login-left">
-            <div className="login-eyebrow">Cost Project Tracker</div>
-            <div className="login-logo-row"><img src="/PL.png" alt="PL" className="login-logo-img" /></div>
-            <div className="login-title">PARANA<span>LOGÍSTICA</span></div>
-            <div className="login-line" />
-            <div className="login-sub">Control de costos, órdenes de compra y márgenes de proyecto en tiempo real.</div>
+            <div className="login-left-integra-wrap">
+              <img src="/integralogo.png" alt="INTEGRA" className="login-left-integra-img" />
+            </div>
+            <div className="login-left-divider" />
+            <div className="login-left-company">
+              <img src="/PL.png" alt="Parana Logística" className="login-left-company-logo" />
+              <div className="login-left-company-name">Parana Logística | Cost Tracker</div>
+            </div>
+            <div className="login-left-line" />
+            <div className="login-left-sub">We Find the Way, or We Make One.</div>
           </div>
           <div className="login-right">
             <div className="login-card">
-              <div className="login-card-title">Acceso al módulo</div>
+              <div className="login-card-eyebrow">Parana Logística | Cost Tracker</div>
+              <div className="login-card-title">Acceso al portal</div>
               <div className="login-card-sub">Solo personal autorizado</div>
-              {error && <div className="login-err">{error}</div>}
+              {error && <div className="login-error">{error}</div>}
               <div className="login-fg"><label>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} placeholder="usuario@paranalogistica.com.ar" autoFocus /></div>
               <div className="login-fg"><label>Contraseña</label><input type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} placeholder="••••••••" /></div>
-              <button className="login-submit" onClick={handleLogin} disabled={loading||!email||!pass}>{loading?'Ingresando...':'Ingresar →'}</button>
-              <div className="login-foot">Parana Logística · Acceso restringido</div>
-              <div className="login-back" onClick={()=>window.location.href=PORTAL_URL}>← Volver al Portal</div>
+              <button className="login-btn" onClick={handleLogin} disabled={loading||!email||!pass}>{loading?'Ingresando...':'Ingresar →'}</button>
+              <div className="login-footer">Parana Logística · Acceso restringido</div>
+              <div className="login-back" onClick={()=>window.location.href=PORTAL_URL}>← Volver a Grupo PL</div>
             </div>
           </div>
         </div>
