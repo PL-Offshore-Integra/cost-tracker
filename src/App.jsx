@@ -149,16 +149,23 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --navy:#0B1629;--gold:#B8942A;--gold2:#D4AA3A;--blue:#235C96;
-  --bg:#F0F4F8;--surface:#fff;--border:#D6E0ED;
-  --text:#0B1629;--muted:#6381A7;
+  /* [DS-1.2] Colores estructurales — NO modificar [DS-9.3] */
+  --navy:#213363;--blue:#235C96;--mid:#6381A7;--light:#A5B5CC;
+  /* [DS-1.3] Superficies */
+  --bg:#F0F4F8;--surface:#fff;--surface2:#F5F7FA;--border:#D6E0ED;
+  /* [DS-1.4] Semánticos */
+  --text:#213363;--muted:#6381A7;--muted2:#8FA3BC;
+  --accent:#235C96;--accent2:#1E7A4A;--warn:#B07D0A;--danger:#C0392B;
+  /* Variables adicionales de este módulo */
+  --gold:#B8942A;--gold2:#D4AA3A;
   --g:#059669;--r:#DC2626;--w:#D97706;
   --sans:'Montserrat',sans-serif;--mono:'DM Mono',monospace;
+  --r2:10px;--r:6px;
 }
-body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13px;min-height:100vh}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;overflow-x:hidden}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-.app-wrap{display:flex;flex-direction:column;min-height:100vh}
+.app-wrap{display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden}
 /* HEADER */
 .header{background:var(--navy);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:58px;border-bottom:1px solid rgba(184,148,42,.2);flex-shrink:0}
 .hdr-brand{display:flex;align-items:center;gap:12px}
@@ -182,7 +189,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 /* SUB TABS */
 .sub-tabs{display:flex;gap:8px;margin-bottom:16px}
 /* MAIN */
-.main{flex:1;padding:24px 28px;overflow-y:auto}
+.main{flex:1;padding:24px 28px;overflow-y:auto;overflow-x:hidden}
 /* CARD */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 3px rgba(11,22,41,.06)}
 .card-hdr{padding:11px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:#FAFBFC}
@@ -191,7 +198,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
 .kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:15px 16px;box-shadow:0 1px 3px rgba(11,22,41,.06)}
 .kpi-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:600}
-.kpi-val{font-size:22px;font-weight:800;line-height:1;color:var(--navy)}
+.kpi-val{font-size:28px;font-weight:700;line-height:1;color:var(--navy);font-family:var(--mono)}
 .kpi-sub{font-size:11px;color:var(--muted);margin-top:5px}
 /* TABLE */
 .tbl-wrap{overflow-x:auto;max-height:400px;overflow-y:auto}
@@ -200,9 +207,9 @@ th{padding:8px 12px;text-align:left;color:var(--muted);font-weight:700;font-size
 td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text)}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#F7F9FC}
-.mono{font-family:'Courier New',monospace;font-size:11px}
+.mono{font-family:var(--mono);font-size:11px}
 /* INLINE EDIT */
-.inline-edit{background:#fff;border:1px solid var(--blue);color:var(--text);padding:3px 6px;border-radius:4px;font-size:11px;font-family:'Courier New',monospace;width:90px}
+.inline-edit{background:#fff;border:1px solid var(--blue);color:var(--text);padding:3px 6px;border-radius:4px;font-size:11px;font-family:var(--mono),monospace;width:90px}
 .inline-edit:focus{outline:none;box-shadow:0 0 0 2px rgba(35,92,150,.2)}
 /* CHIPS */
 .chip{display:inline-flex;align-items:center;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
@@ -221,7 +228,7 @@ tr:hover td{background:#F7F9FC}
 /* COLORS */
 .cg{color:#059669}.cr{color:#DC2626}.cw{color:#D97706}.cb{color:#235C96}
 /* BUTTONS */
-.btn{background:#235C96;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-family:var(--sans);font-weight:700;cursor:pointer;transition:all .15s}
+.btn{display:inline-flex;align-items:center;gap:6px;background:#235C96;color:#fff;border:1px solid transparent;padding:7px 14px;border-radius:var(--r,6px);font-size:11px;font-family:var(--sans);font-weight:600;letter-spacing:.3px;text-transform:uppercase;cursor:pointer;transition:all .15s}
 .btn:hover{background:#1a4a7a}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);padding:6px 14px;border-radius:6px;font-size:12px;font-family:var(--sans);font-weight:600;cursor:pointer}
@@ -234,6 +241,10 @@ textarea{resize:vertical;min-height:60px}
 .form-row{margin-bottom:12px}
 .form-row label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0}
+/* [DS-11.8] utilitarios adicionales */
+.mb16{margin-bottom:16px}
+.mt16{margin-top:16px}
+.pb14{padding-bottom:14px}
 /* PROGRESS */
 .prog-wrap{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
 .prog{height:100%;border-radius:3px;transition:width .3s}
@@ -291,7 +302,40 @@ textarea{resize:vertical;min-height:60px}
 .login-footer{text-align:center;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,0.2);margin-top:20px;letter-spacing:1px}
 .login-back{text-align:center;margin-top:12px;font-size:11px;color:rgba(255,255,255,0.3);cursor:pointer;font-family:var(--mono)}
 .login-back:hover{color:#B8942A}
-@media(max-width:768px){.login-split{flex-direction:column}.login-left{padding:48px 32px 32px;border-right:none;border-bottom:1px solid rgba(26,122,110,0.2);align-items:center;text-align:center}.login-left-integra-img{height:200px;max-width:90vw}.login-left-line{margin:16px auto}.login-left-sub{max-width:100%}.login-right{width:100%;padding:32px 24px 48px}.login-card{padding:28px 24px}.kpi-row{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}.tabs{padding:0 16px}.main{padding:16px}.hdr-email{display:none}}
+@media(max-width:768px){
+  /* Login DS §8.7 */
+  .login-split{flex-direction:column}
+  .login-left{padding:48px 32px 32px;border-right:none;border-bottom:1px solid rgba(26,122,110,0.2);align-items:center;text-align:center}
+  .login-left-integra-img{height:200px;max-width:90vw}
+  .login-left-line{margin:16px auto}
+  .login-left-sub{max-width:100%}
+  /* [H04][H05][DS-11.12.3] Optical Centering Rule */
+  .login-right{width:100%;padding:32px 28px 56px;display:flex;justify-content:center;align-items:flex-start}
+  .login-card{width:min(340px,80vw);max-width:340px;margin:0 auto;padding:32px 28px}
+  /* [H07][DS-11.6] kpi-row 2 cols en mobile */
+  .kpi-row{grid-template-columns:1fr 1fr;gap:8px}
+  /* [H08][DS-11.6] two-col 1 col en mobile */
+  .two-col{grid-template-columns:1fr}
+  /* [H11][DS-11.3] kpi-val 22px mobile */
+  .kpi-val{font-size:22px}
+  /* layout */
+  .tabs{padding:0 12px}
+  .main{padding:14px 14px;padding-bottom:16px}
+  .hdr-email{display:none}
+  /* [H18][DS-11.10] tap targets */
+  .btn{min-height:44px}
+  .btn-ghost{min-height:44px}
+  /* [H09][DS-10.4] modal footer columna en mobile */
+  .modal-footer{flex-direction:column;align-items:stretch;gap:6px}
+  .modal-footer .btn{width:100%;justify-content:center;min-height:48px;order:-2}
+  .modal-footer .btn-ghost{width:100%;justify-content:center;min-height:48px}
+  /* Grids inline a 1 col [DS-11.6] */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:500px}
+}
+@media(max-width:414px){.login-card{width:min(332px,80vw)}}
+@media(max-width:390px){.login-card{width:min(312px,80vw);padding:28px 24px}}
+@media(min-width:769px){.kpi-row{grid-template-columns:repeat(5,1fr)}}
 `
 
 // ─── REMINDER HELPER ─────────────────────────────────────────────────────────
@@ -350,7 +394,7 @@ function LoginPage() {
               <div className="login-fg"><label>Contraseña</label><input type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} placeholder="••••••••" /></div>
               <button className="login-btn" onClick={handleLogin} disabled={loading||!email||!pass}>{loading?'Ingresando...':'Ingresar →'}</button>
               <div className="login-footer">Parana Logística · Acceso restringido</div>
-              <div className="login-back" onClick={()=>window.location.href=PORTAL_URL}>← Volver a Grupo PL</div>
+              <div className="login-back" onClick={()=>window.location.href=PORTAL_URL}>← Volver al portal</div>
             </div>
           </div>
         </div>
@@ -404,7 +448,7 @@ function TabOverview({ proyecto }) {
         <div className="kpi"><div className="kpi-lbl">Margen Contribución</div><div className="kpi-val cg">{cm}%</div><div className="kpi-sub">(Ingreso − Costo Real) / Ingreso</div></div>
         <div className="kpi"><div className="kpi-lbl">Cobrado</div><div className="kpi-val cb" style={{fontSize:20}}>{fmtUSD(cobrado)}</div><div className="kpi-sub">de {fmtUSD(ingreso)} cotizados</div></div>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+      <div className="two-col" style={{gap:16,marginBottom:16}}>
         <div className="card">
           <div className="card-hdr"><span className="card-title">Ejecución</span></div>
           <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:12}}>
@@ -1620,7 +1664,7 @@ function SubTabMargen({ proyecto }) {
   const cm      = totalCotizado>0 ? ((totalCotizado-totalReal)/totalCotizado*100).toFixed(1) : 0
 
   return (
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+    <div className="two-col" style={{gap:16}}>
       <div className="card" style={{marginBottom:0}}>
         <div className="card-hdr"><span className="card-title">Resumen de Márgenes</span></div>
         <div style={{padding:'16px',display:'flex',flexDirection:'column',gap:12,fontSize:13}}>
@@ -1691,7 +1735,7 @@ function TabCashflow({ proyecto }) {
 
   return (
     <>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
+      <div className="two-col" style={{gap:16,marginBottom:16}}>
         <div className="card" style={{marginBottom:0}}>
           <div className="card-hdr"><span className="card-title">Caja del Proyecto</span></div>
           <div style={{padding:'16px',display:'flex',flexDirection:'column',gap:9,fontSize:13}}>
@@ -1773,7 +1817,7 @@ function TabCategorias() {
 
   return (
     <>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+      <div className="two-col" style={{gap:16}}>
         <div className="card">
           <div className="card-hdr"><span className="card-title">Catálogo de Categorías</span><button className="btn" onClick={()=>setModal(true)}>+ Nueva</button></div>
           <div style={{padding:8}}>
@@ -1974,7 +2018,7 @@ export default function App() {
     <>
       <style>{CSS}</style>
       <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'#0B1629'}}>
-        <div style={{fontFamily:'DM Mono',fontSize:10,color:'rgba(255,255,255,.3)',letterSpacing:3,textTransform:'uppercase'}}>Cargando...</div>
+        <div style={{fontFamily:'var(--mono)',fontSize:10,color:'rgba(255,255,255,0.3)',letterSpacing:3,textTransform:'uppercase'}}>Cargando...</div>
       </div>
     </>
   )
