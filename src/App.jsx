@@ -356,7 +356,7 @@ function TabOverview({ proyecto }) {
   // Tabla pivot
   const [pivotFila, setPivotFila]     = useState('proveedor')   // proveedor | categoria | cuit | mes
   const [pivotCol, setPivotCol]       = useState('tipo')        // tipo | categoria | mes
-  const [pivotMoneda, setPivotMoneda] = useState('USD')
+  const [pivotMoneda, setPivotMoneda] = useState('USD_sin') // USD_sin | USD_con | ARS_sin | ARS_con
   const [pivotFiltroTipo, setPivotFiltroTipo] = useState('todos') // todos | facturable | nofacturable | operacion
 
   const load = useCallback(async () => {
@@ -411,8 +411,10 @@ function TabOverview({ proyecto }) {
         cuit: '—',
         categoria: a.categoria ? (CATS_LABEL[a.categoria] || a.categoria) : '—',
         mes: '—',
-        monto_usd: a.monto_usd || 0,
-        monto_ars: null,
+        usd_sin: a.monto_usd || 0,
+        usd_con: a.monto_usd || 0, // facturables no tienen IVA separado en alocaciones
+        ars_sin: null,
+        ars_con: null,
         moneda_orig: 'USD',
       })
     })
@@ -421,15 +423,16 @@ function TabOverview({ proyecto }) {
     ocsNF.forEach(o => {
       const mesRaw = o.fecha_emision ? o.fecha_emision.slice(0,7) : '—'
       const mes = mesRaw !== '—' ? mesRaw : '—'
-      const montoARS = o.moneda === 'ARS' ? o.monto_sin_iva : null
       rows.push({
         tipo: 'No Facturable',
         proveedor: o.proveedor || '—',
         cuit: o.cuit_proveedor || '—',
         categoria: o.descripcion || '—',
         mes,
-        monto_usd: o.monto_usd_sin_iva || 0,
-        monto_ars: montoARS,
+        usd_sin: o.monto_usd_sin_iva || 0,
+        usd_con: o.monto_usd_con_iva || 0,
+        ars_sin: o.moneda === 'ARS' ? (o.monto_sin_iva || 0) : null,
+        ars_con: o.moneda === 'ARS' ? (o.monto_sin_iva * (1 + (o.iva_pct||0)/100)) : null,
         moneda_orig: o.moneda || 'ARS',
       })
     })
@@ -437,31 +440,33 @@ function TabOverview({ proyecto }) {
     // Operación: costos
     opCostos.forEach(r => {
       const mes = r.fecha ? r.fecha.slice(0,7) : '—'
-      const montoARS = r.moneda === 'ARS' ? r.monto : null
       rows.push({
         tipo: 'Op. Costo',
         proveedor: r.descripcion || '—',
         cuit: '—',
         categoria: r.cpt_categorias?.nombre || '—',
         mes,
-        monto_usd: r.monto_usd || 0,
-        monto_ars: montoARS,
+        usd_sin: r.monto_usd || 0,
+        usd_con: r.monto_usd || 0,
+        ars_sin: r.moneda === 'ARS' ? (r.monto || 0) : null,
+        ars_con: r.moneda === 'ARS' ? (r.monto || 0) : null, // op costos no tienen IVA separado
         moneda_orig: r.moneda || 'USD',
       })
     })
 
-    // Operación: ingresos (negativos desde perspectiva de costo, los mostramos positivos)
+    // Operación: ingresos
     opIngresos.forEach(r => {
       const mes = r.fecha ? r.fecha.slice(0,7) : '—'
-      const montoARS = r.moneda === 'ARS' ? r.monto : null
       rows.push({
         tipo: 'Op. Ingreso',
         proveedor: r.descripcion || '—',
         cuit: '—',
         categoria: r.cpt_categorias?.nombre || '—',
         mes,
-        monto_usd: r.monto_usd || 0,
-        monto_ars: montoARS,
+        usd_sin: r.monto_usd || 0,
+        usd_con: r.monto_usd || 0,
+        ars_sin: r.moneda === 'ARS' ? (r.monto || 0) : null,
+        ars_con: r.moneda === 'ARS' ? (r.monto || 0) : null,
         moneda_orig: r.moneda || 'USD',
         esIngreso: true,
       })
@@ -491,7 +496,13 @@ function TabOverview({ proyecto }) {
 
   const allRows   = buildPivotData()
   const filtered  = pivotFiltroTipo === 'todos' ? allRows : allRows.filter(r=>r.tipo===pivotFiltroTipo)
-  const getVal    = (r) => pivotMoneda === 'USD' ? (r.monto_usd||0) : (r.monto_ars != null ? r.monto_ars : (r.monto_usd||0))
+  const getVal = (r) => {
+    if (pivotMoneda === 'USD_sin') return r.usd_sin || 0
+    if (pivotMoneda === 'USD_con') return r.usd_con || 0
+    if (pivotMoneda === 'ARS_sin') return r.ars_sin != null ? r.ars_sin : (r.usd_sin || 0)
+    if (pivotMoneda === 'ARS_con') return r.ars_con != null ? r.ars_con : (r.usd_con || 0)
+    return r.usd_sin || 0
+  }
   const getFila   = (r) => r[pivotFila] || '—'
   const getCol    = (r) => r[pivotCol]  || '—'
 
@@ -514,7 +525,8 @@ function TabOverview({ proyecto }) {
 
   const fmtPivot = (v) => {
     if (!v) return <span style={{color:'var(--muted)'}}>—</span>
-    if (pivotMoneda === 'ARS') return <span className="mono" style={{fontSize:11}}>${Number(v).toLocaleString('es-AR',{maximumFractionDigits:0})}</span>
+    const esARS = pivotMoneda.startsWith('ARS')
+    if (esARS) return <span className="mono" style={{fontSize:11}}>${Number(v).toLocaleString('es-AR',{maximumFractionDigits:0})}</span>
     return <span className="mono" style={{fontSize:11}}>{fmtUSD(v)}</span>
   }
 
@@ -731,12 +743,14 @@ function TabOverview({ proyecto }) {
                 {TIPO_OPTS.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}
               </select>
             </div>
-            <div style={{display:'flex',gap:0,borderRadius:6,overflow:'hidden',border:'1px solid var(--border)'}}>
-              {['USD','ARS'].map(m=>(
-                <button key={m} onClick={()=>setPivotMoneda(m)} style={{padding:'4px 10px',fontSize:11,fontWeight:700,border:'none',cursor:'pointer',background:pivotMoneda===m?'var(--blue)':'#fff',color:pivotMoneda===m?'#fff':'var(--muted)'}}>
-                  {m}
-                </button>
-              ))}
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <span style={{fontSize:10,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>Valores</span>
+              <select value={pivotMoneda} onChange={e=>setPivotMoneda(e.target.value)} style={{fontSize:11,padding:'3px 7px',width:'auto'}}>
+                <option value="USD_sin">USD s/IVA</option>
+                <option value="USD_con">USD c/IVA</option>
+                <option value="ARS_sin">ARS s/IVA</option>
+                <option value="ARS_con">ARS c/IVA</option>
+              </select>
             </div>
           </div>
         </div>
@@ -1580,13 +1594,54 @@ function TabCashflow({ proyecto }) {
   )
 }
 
+// ─── MODAL EDITAR OC NF ───────────────────────────────────────────────────────
+function ModalEditarOCNF({ oc, zonas, onClose, onSave, onDelete }) {
+  const [form, setForm] = useState({
+    numero_oc: oc.numero_oc||'', proveedor: oc.proveedor||'', cuit_proveedor: oc.cuit_proveedor||'',
+    zona_id: oc.zona_id||'', descripcion: oc.descripcion||'', moneda: oc.moneda||'ARS',
+    monto_sin_iva: oc.monto_sin_iva||'', iva_pct: oc.iva_pct??'21', fx: oc.fx||'',
+    fecha_emision: oc.fecha_emision||'', estado: oc.estado||'activa',
+  })
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); setSaving(true)
+    try { await onSave(form) } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="overlay open" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{width:560}}>
+        <h3>Editar OC — {oc.numero_oc}</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="two-col"><div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} /></div><div className="form-row"><label>Proveedor *</label><input required value={form.proveedor} onChange={e=>setForm(f=>({...f,proveedor:e.target.value}))} /></div></div>
+          <div className="form-row"><label>CUIT</label><input value={form.cuit_proveedor} onChange={e=>setForm(f=>({...f,cuit_proveedor:e.target.value}))} /></div>
+          <div className="two-col"><div className="form-row"><label>Zona</label><select value={form.zona_id} onChange={e=>setForm(f=>({...f,zona_id:e.target.value}))}><option value="">Sin zona</option>{zonas.map(z=><option key={z.id} value={z.id}>{z.nombre}</option>)}</select></div><div className="form-row"><label>Estado</label><select value={form.estado} onChange={e=>setForm(f=>({...f,estado:e.target.value}))}><option value="pendiente_aprobacion">Pend. aprobación</option><option value="aprobada">Aprobada</option><option value="activa">Activa</option><option value="completada">Completada</option></select></div></div>
+          <div className="form-row"><label>Descripción</label><input value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} /></div>
+          <div className="two-col"><div className="form-row"><label>Moneda</label><select value={form.moneda} onChange={e=>setForm(f=>({...f,moneda:e.target.value}))}><option value="ARS">ARS</option><option value="USD">USD</option></select></div><div className="form-row"><label>FX {form.moneda==='USD'?'(no aplica)':'*'}</label><input type="number" value={form.fx} onChange={e=>setForm(f=>({...f,fx:e.target.value}))} disabled={form.moneda==='USD'} required={form.moneda==='ARS'} placeholder="ej. 1425" /></div></div>
+          <div className="two-col"><div className="form-row"><label>Monto s/IVA ({form.moneda}) *</label><input required type="number" step="0.01" value={form.monto_sin_iva} onChange={e=>setForm(f=>({...f,monto_sin_iva:e.target.value}))} /></div><div className="form-row"><label>IVA %</label><select value={form.iva_pct} onChange={e=>setForm(f=>({...f,iva_pct:e.target.value}))}><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div></div>
+          <div className="form-row"><label>Fecha emisión</label><input type="date" value={form.fecha_emision} onChange={e=>setForm(f=>({...f,fecha_emision:e.target.value}))} /></div>
+          <div className="modal-footer" style={{justifyContent:'space-between'}}>
+            <button type="button" onClick={onDelete} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}>🗑 Eliminar OC</button>
+            <div style={{display:'flex',gap:8}}>
+              <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
+              <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ─── NO FACTURABLES ───────────────────────────────────────────────────────────
 function SubTabPrepBarco({ proyecto }) {
-  const [ocs, setOcs]         = useState([])
-  const [zonas, setZonas]     = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState(null)
+  const [ocs, setOcs]           = useState([])
+  const [zonas, setZonas]       = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [error, setError]       = useState(null)
   const [filterZona, setFilterZona] = useState('')
+  const [modalEditar, setModalEditar] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
@@ -1672,9 +1727,9 @@ function SubTabPrepBarco({ proyecto }) {
         </div>
         <div className="tbl-wrap">
           <table>
-            <thead><tr><th>#OC</th><th>Proveedor</th><th>Descripción</th><th>Zona</th><th>Mon.</th><th>s/IVA orig.</th><th>c/IVA orig.</th><th>FX</th><th>USD s/IVA</th><th>USD c/IVA</th><th>Estado</th></tr></thead>
+            <thead><tr><th>#OC</th><th>Proveedor</th><th>Descripción</th><th>Zona</th><th>Mon.</th><th>s/IVA orig.</th><th>c/IVA orig.</th><th>FX</th><th>USD s/IVA</th><th>USD c/IVA</th><th>Estado</th><th></th></tr></thead>
             <tbody>
-              {filtradas.length===0&&<tr><td colSpan={11} className="state-msg">Sin OC</td></tr>}
+              {filtradas.length===0&&<tr><td colSpan={12} className="state-msg">Sin OC</td></tr>}
               {filtradas.map(o=>(
                 <tr key={o.id}>
                   <td className="mono cb">{o.numero_oc}</td>
@@ -1688,6 +1743,7 @@ function SubTabPrepBarco({ proyecto }) {
                   <td className="mono">{fmtUSD(o.monto_usd_sin_iva)}</td>
                   <td className="mono cg">{fmtUSD(o.monto_usd_con_iva)}</td>
                   <td><span className={`chip ${o.estado==='activa'?'c-ok':'c-pend'}`}>{safeReplace(o.estado)}</span></td>
+                  <td><button className="btn-ghost" style={{padding:'3px 8px',fontSize:10}} onClick={()=>setModalEditar(o)}>Editar</button></td>
                 </tr>
               ))}
             </tbody>
@@ -1698,6 +1754,29 @@ function SubTabPrepBarco({ proyecto }) {
           <span style={{color:'var(--muted)'}}>USD c/IVA: <strong className="cg">{fmtUSD(totalConIVA)}</strong></span>
         </div>
       </div>
+      {modalEditar&&(
+        <ModalEditarOCNF
+          oc={modalEditar} zonas={zonas}
+          onClose={()=>setModalEditar(null)}
+          onSave={async (data)=>{
+            const {error}=await supabase.from('cpt_oc_nf').update({
+              numero_oc:data.numero_oc, proveedor:data.proveedor,
+              cuit_proveedor:data.cuit_proveedor||null, zona_id:data.zona_id||null,
+              descripcion:data.descripcion, moneda:data.moneda,
+              monto_sin_iva:Number(data.monto_sin_iva), iva_pct:Number(data.iva_pct),
+              fx:Number(data.fx)||null, fecha_emision:data.fecha_emision||null, estado:data.estado,
+            }).eq('id',modalEditar.id)
+            if (error) { alert(error.message); return }
+            setModalEditar(null); await load()
+          }}
+          onDelete={async()=>{
+            if (!confirm(`¿Eliminar OC ${modalEditar.numero_oc}?`)) return
+            const {error}=await supabase.from('cpt_oc_nf').delete().eq('id',modalEditar.id)
+            if (error) { alert(error.message); return }
+            setModalEditar(null); await load()
+          }}
+        />
+      )}
     </>
   )
 }
@@ -1924,6 +2003,7 @@ function SubTabOpCostos({ proyecto }) {
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
   const [modal, setModal]         = useState(false)
+  const [modalEditar, setModalEditar] = useState(null)
   const [saving, setSaving]       = useState(false)
   const emptyForm = {fecha:'',categoria_id:'',descripcion:'',moneda:'USD',monto:'',fx:'',notas:''}
   const [form, setForm]           = useState(emptyForm)
@@ -2021,7 +2101,12 @@ function SubTabOpCostos({ proyecto }) {
                   <td className="mono" style={{color:'var(--muted)'}}>{r.fx?Number(r.fx).toLocaleString('es-AR'):'—'}</td>
                   <td className="mono cr" style={{textAlign:'right'}}>−{fmtUSD(r.monto_usd)}</td>
                   <td style={{fontSize:11,color:'var(--muted)'}}>{r.notas||'—'}</td>
-                  <td><button className="btn-ghost" style={{padding:'2px 8px',fontSize:10,color:'var(--r)'}} onClick={()=>handleDelete(r.id)}>✕</button></td>
+                  <td>
+                    <div style={{display:'flex',gap:4}}>
+                      <button className="btn-ghost" style={{padding:'2px 8px',fontSize:10}} onClick={()=>setModalEditar(r)}>Editar</button>
+                      <button className="btn-ghost" style={{padding:'2px 8px',fontSize:10,color:'var(--r)'}} onClick={()=>handleDelete(r.id)}>✕</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -2033,6 +2118,44 @@ function SubTabOpCostos({ proyecto }) {
         </div>
       </div>
       {modal&&<ModalOpRegistro titulo="Registrar costo operativo" cats={cats} form={form} setForm={setForm} saving={saving} onClose={()=>setModal(false)} onSubmit={handleSave} esIngreso={false} />}
+      {modalEditar&&(
+        <ModalOpRegistro
+          titulo="Editar costo operativo"
+          cats={cats}
+          form={{
+            fecha: modalEditar.fecha||'',
+            categoria_id: modalEditar.categoria_id||'',
+            descripcion: modalEditar.descripcion||'',
+            moneda: modalEditar.moneda||'USD',
+            monto: modalEditar.monto||'',
+            fx: modalEditar.fx||'',
+            notas: modalEditar.notas||'',
+          }}
+          setForm={(updater)=>{
+            setModalEditar(prev => {
+              const current = {fecha:prev.fecha||'',categoria_id:prev.categoria_id||'',descripcion:prev.descripcion||'',moneda:prev.moneda||'USD',monto:prev.monto||'',fx:prev.fx||'',notas:prev.notas||''}
+              const next = typeof updater === 'function' ? updater(current) : updater
+              return {...prev,...next}
+            })
+          }}
+          saving={saving}
+          onClose={()=>setModalEditar(null)}
+          onSubmit={async(e)=>{
+            e.preventDefault(); setSaving(true)
+            try {
+              const {error}=await supabase.from('cpt_op_costos').update({
+                fecha:modalEditar.fecha, categoria_id:modalEditar.categoria_id,
+                descripcion:modalEditar.descripcion, moneda:modalEditar.moneda,
+                monto:Number(modalEditar.monto), fx:Number(modalEditar.fx)||null,
+                notas:modalEditar.notas||null,
+              }).eq('id',modalEditar.id)
+              if (error) { alert(error.message); return }
+              setModalEditar(null); await load()
+            } finally { setSaving(false) }
+          }}
+          esIngreso={false}
+        />
+      )}
     </>
   )
 }
@@ -2043,6 +2166,7 @@ function SubTabOpIngresos({ proyecto }) {
   const [loading, setLoading]     = useState(true)
   const [error, setError]         = useState(null)
   const [modal, setModal]         = useState(false)
+  const [modalEditar, setModalEditar] = useState(null)
   const [saving, setSaving]       = useState(false)
   const emptyForm = {fecha:'',categoria_id:'',descripcion:'',moneda:'USD',monto:'',fx:'',notas:'',es_forecast:false}
   const [form, setForm]           = useState(emptyForm)
@@ -2106,7 +2230,12 @@ function SubTabOpIngresos({ proyecto }) {
                   <td className="mono cg" style={{textAlign:'right'}}>+{fmtUSD(r.monto_usd)}</td>
                   <td><span className={`chip ${r.es_forecast?'c-forecast':'c-ok'}`}>{r.es_forecast?'Forecast':'Confirmado'}</span></td>
                   <td style={{fontSize:11,color:'var(--muted)'}}>{r.notas||'—'}</td>
-                  <td><button className="btn-ghost" style={{padding:'2px 8px',fontSize:10,color:'var(--r)'}} onClick={()=>handleDelete(r.id)}>✕</button></td>
+                  <td>
+                    <div style={{display:'flex',gap:4}}>
+                      <button className="btn-ghost" style={{padding:'2px 8px',fontSize:10}} onClick={()=>setModalEditar(r)}>Editar</button>
+                      <button className="btn-ghost" style={{padding:'2px 8px',fontSize:10,color:'var(--r)'}} onClick={()=>handleDelete(r.id)}>✕</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -2119,6 +2248,45 @@ function SubTabOpIngresos({ proyecto }) {
         </div>
       </div>
       {modal&&<ModalOpRegistro titulo="Registrar ingreso operativo" cats={cats} form={form} setForm={setForm} saving={saving} onClose={()=>setModal(false)} onSubmit={handleSave} esIngreso={true} />}
+      {modalEditar&&(
+        <ModalOpRegistro
+          titulo="Editar ingreso operativo"
+          cats={cats}
+          form={{
+            fecha: modalEditar.fecha||'',
+            categoria_id: modalEditar.categoria_id||'',
+            descripcion: modalEditar.descripcion||'',
+            moneda: modalEditar.moneda||'USD',
+            monto: modalEditar.monto||'',
+            fx: modalEditar.fx||'',
+            notas: modalEditar.notas||'',
+            es_forecast: modalEditar.es_forecast||false,
+          }}
+          setForm={(updater)=>{
+            setModalEditar(prev => {
+              const current = {fecha:prev.fecha||'',categoria_id:prev.categoria_id||'',descripcion:prev.descripcion||'',moneda:prev.moneda||'USD',monto:prev.monto||'',fx:prev.fx||'',notas:prev.notas||'',es_forecast:prev.es_forecast||false}
+              const next = typeof updater === 'function' ? updater(current) : updater
+              return {...prev,...next}
+            })
+          }}
+          saving={saving}
+          onClose={()=>setModalEditar(null)}
+          onSubmit={async(e)=>{
+            e.preventDefault(); setSaving(true)
+            try {
+              const {error}=await supabase.from('cpt_op_ingresos').update({
+                fecha:modalEditar.fecha, categoria_id:modalEditar.categoria_id,
+                descripcion:modalEditar.descripcion, moneda:modalEditar.moneda,
+                monto:Number(modalEditar.monto), fx:Number(modalEditar.fx)||null,
+                notas:modalEditar.notas||null, es_forecast:modalEditar.es_forecast,
+              }).eq('id',modalEditar.id)
+              if (error) { alert(error.message); return }
+              setModalEditar(null); await load()
+            } finally { setSaving(false) }
+          }}
+          esIngreso={true}
+        />
+      )}
     </>
   )
 }
