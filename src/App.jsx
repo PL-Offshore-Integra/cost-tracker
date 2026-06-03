@@ -580,16 +580,9 @@ function TabOverview({ proyecto }) {
     </div>
   )
 
+
   return (
     <>
-      {/* ── KPIs globales ── */}
-      <div className="kpi-row" style={{gridTemplateColumns:'repeat(4,1fr)'}}>
-        <div className="kpi"><div className="kpi-lbl">Ingresos Facturables</div><div className="kpi-val cb">{fmtUSD(ingreso)}</div><div className="kpi-sub">Cotizado al cliente</div></div>
-        <div className="kpi"><div className="kpi-lbl">No Facturables (c/IVA)</div><div className="kpi-val cw">{fmtUSD(totalNFconIVA)}</div><div className="kpi-sub">Alistamiento · {ocsNF.length} OC</div></div>
-        <div className="kpi"><div className="kpi-lbl">Resultado Operativo</div><div className="kpi-val" style={{color:resultadoOp>=0?'#059669':'#DC2626'}}>{fmtUSD(resultadoOp)}</div><div className="kpi-sub">Ing. − Costo operativo</div></div>
-        <div className="kpi"><div className="kpi-lbl">CM Facturables</div><div className="kpi-val cg">{cm}%</div><div className="kpi-sub">(Ing − Costo real) / Ing</div></div>
-      </div>
-
       {/* ── 3 cards resumen por bloque ── */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:16}}>
 
