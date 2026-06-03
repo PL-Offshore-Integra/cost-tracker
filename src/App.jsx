@@ -339,24 +339,39 @@ const CATS_LABEL = {material:'Material',mano_obra:'Mano de Obra',instalacion:'In
 
 // ─── TAB OVERVIEW ─────────────────────────────────────────────────────────────
 function TabOverview({ proyecto }) {
-  const [items, setItems]         = useState([])
-  const [fventa, setFventa]       = useState([])
-  const [noPlan, setNoPlan]       = useState([])
-  const [opCostos, setOpCostos]   = useState([])
+  const [items, setItems]           = useState([])
+  const [fventa, setFventa]         = useState([])
+  const [alocs, setAlocs]           = useState([])
+  const [opCostos, setOpCostos]     = useState([])
   const [opIngresos, setOpIngresos] = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState(null)
+  const [ocsNF, setOcsNF]           = useState([])
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState(null)
+
+  // Secciones expandibles
+  const [expandFact, setExpandFact]   = useState(false)
+  const [expandNF, setExpandNF]       = useState(false)
+  const [expandOp, setExpandOp]       = useState(false)
+
+  // Tabla pivot
+  const [pivotFila, setPivotFila]     = useState('proveedor')   // proveedor | categoria | cuit | mes
+  const [pivotCol, setPivotCol]       = useState('tipo')        // tipo | categoria | mes
+  const [pivotMoneda, setPivotMoneda] = useState('USD')
+  const [pivotFiltroTipo, setPivotFiltroTipo] = useState('todos') // todos | facturable | nofacturable | operacion
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [its, fv, alocs, opc, opi] = await Promise.all([
-        api.getItems(proyecto.id), api.getFacturasVenta(proyecto.id),
-        api.getAlocacionesResumen(proyecto.id), api.getOpCostos(proyecto.id), api.getOpIngresos(proyecto.id),
+      const [its, fv, al, opc, opi, onf] = await Promise.all([
+        api.getItems(proyecto.id),
+        api.getFacturasVenta(proyecto.id),
+        api.getAlocacionesResumen(proyecto.id),
+        api.getOpCostos(proyecto.id),
+        api.getOpIngresos(proyecto.id),
+        api.getOCsNF(proyecto.id),
       ])
-      setItems(its); setFventa(fv)
-      setNoPlan(alocs.filter(a=>a.planificacion==='no_planeado'))
-      setOpCostos(opc); setOpIngresos(opi)
+      setItems(its); setFventa(fv); setAlocs(al)
+      setOpCostos(opc); setOpIngresos(opi); setOcsNF(onf)
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
   }, [proyecto.id])
@@ -366,69 +381,417 @@ function TabOverview({ proyecto }) {
   if (loading) return <div className="state-msg">Cargando overview...</div>
   if (error)   return <div className="alert alert-err">Error: {error}</div>
 
+  // ── Cálculos por bloque ────────────────────────────────────────────────────
   const ingreso      = items.reduce((s,i)=>s+(i.precio_cliente||0),0)
   const costoPres    = items.reduce((s,i)=>s+CATS.reduce((sc,cat)=>sc+(i.costos?.[cat]?.pres?.usd||0),0),0)
   const costoReal    = items.reduce((s,i)=>s+CATS.reduce((sc,cat)=>sc+(i.costos_real?.[cat]||0),0),0)
   const cobrado      = fventa.reduce((s,f)=>s+(f.monto_cobrado||0),0)
+  const cm           = ingreso>0?((ingreso-costoReal)/ingreso*100).toFixed(1):0
+  const noPlan       = alocs.filter(a=>a.planificacion==='no_planeado')
+
+  const totalNFsinIVA = ocsNF.reduce((s,o)=>s+(o.monto_usd_sin_iva||0),0)
+  const totalNFconIVA = ocsNF.reduce((s,o)=>s+(o.monto_usd_con_iva||0),0)
+
   const totalOpCosto = opCostos.reduce((s,r)=>s+(r.monto_usd||0),0)
   const totalOpIng   = opIngresos.filter(r=>!r.es_forecast).reduce((s,r)=>s+(r.monto_usd||0),0)
-  const cm = ingreso>0?((ingreso-costoReal)/ingreso*100).toFixed(1):0
+  const totalOpFcast = opIngresos.filter(r=>r.es_forecast).reduce((s,r)=>s+(r.monto_usd||0),0)
+  const resultadoOp  = totalOpIng - totalOpCosto
+
+  // ── Construcción de filas para la pivot ───────────────────────────────────
+  // Cada "registro" tiene: tipo, proveedor, cuit, categoria, mes, monto_usd, monto_ars, moneda_orig
+  const buildPivotData = () => {
+    const rows = []
+
+    // Facturables: alocaciones de OC
+    alocs.forEach(a => {
+      const oc = a.cpt_oc || {}
+      rows.push({
+        tipo: 'Facturable',
+        proveedor: oc.proveedor || '—',
+        cuit: '—',
+        categoria: a.categoria ? (CATS_LABEL[a.categoria] || a.categoria) : '—',
+        mes: '—',
+        monto_usd: a.monto_usd || 0,
+        monto_ars: null,
+        moneda_orig: 'USD',
+      })
+    })
+
+    // No Facturables: OCs NF
+    ocsNF.forEach(o => {
+      const mesRaw = o.fecha_emision ? o.fecha_emision.slice(0,7) : '—'
+      const mes = mesRaw !== '—' ? mesRaw : '—'
+      const montoARS = o.moneda === 'ARS' ? o.monto_sin_iva : null
+      rows.push({
+        tipo: 'No Facturable',
+        proveedor: o.proveedor || '—',
+        cuit: o.cuit_proveedor || '—',
+        categoria: o.descripcion || '—',
+        mes,
+        monto_usd: o.monto_usd_sin_iva || 0,
+        monto_ars: montoARS,
+        moneda_orig: o.moneda || 'ARS',
+      })
+    })
+
+    // Operación: costos
+    opCostos.forEach(r => {
+      const mes = r.fecha ? r.fecha.slice(0,7) : '—'
+      const montoARS = r.moneda === 'ARS' ? r.monto : null
+      rows.push({
+        tipo: 'Op. Costo',
+        proveedor: r.descripcion || '—',
+        cuit: '—',
+        categoria: r.cpt_categorias?.nombre || '—',
+        mes,
+        monto_usd: r.monto_usd || 0,
+        monto_ars: montoARS,
+        moneda_orig: r.moneda || 'USD',
+      })
+    })
+
+    // Operación: ingresos (negativos desde perspectiva de costo, los mostramos positivos)
+    opIngresos.forEach(r => {
+      const mes = r.fecha ? r.fecha.slice(0,7) : '—'
+      const montoARS = r.moneda === 'ARS' ? r.monto : null
+      rows.push({
+        tipo: 'Op. Ingreso',
+        proveedor: r.descripcion || '—',
+        cuit: '—',
+        categoria: r.cpt_categorias?.nombre || '—',
+        mes,
+        monto_usd: r.monto_usd || 0,
+        monto_ars: montoARS,
+        moneda_orig: r.moneda || 'USD',
+        esIngreso: true,
+      })
+    })
+
+    return rows
+  }
+
+  const FILA_OPTS = [
+    {id:'proveedor',  label:'Proveedor'},
+    {id:'cuit',       label:'CUIT'},
+    {id:'categoria',  label:'Categoría'},
+    {id:'mes',        label:'Mes'},
+  ]
+  const COL_OPTS = [
+    {id:'tipo',      label:'Tipo'},
+    {id:'categoria', label:'Categoría'},
+    {id:'mes',       label:'Mes'},
+  ]
+  const TIPO_OPTS = [
+    {id:'todos',        label:'Todos'},
+    {id:'Facturable',   label:'Facturables'},
+    {id:'No Facturable',label:'No Facturables'},
+    {id:'Op. Costo',    label:'Op. Costos'},
+    {id:'Op. Ingreso',  label:'Op. Ingresos'},
+  ]
+
+  const allRows   = buildPivotData()
+  const filtered  = pivotFiltroTipo === 'todos' ? allRows : allRows.filter(r=>r.tipo===pivotFiltroTipo)
+  const getVal    = (r) => pivotMoneda === 'USD' ? (r.monto_usd||0) : (r.monto_ars != null ? r.monto_ars : (r.monto_usd||0))
+  const getFila   = (r) => r[pivotFila] || '—'
+  const getCol    = (r) => r[pivotCol]  || '—'
+
+  // Construir pivot
+  const filaKeys = [...new Set(filtered.map(getFila))].sort()
+  const colKeys  = [...new Set(filtered.map(getCol))].sort()
+  const pivot    = {}
+  const totFila  = {}
+  const totCol   = {}
+  let grandTotal = 0
+
+  filtered.forEach(r => {
+    const f = getFila(r); const c = getCol(r); const v = getVal(r)
+    if (!pivot[f]) pivot[f] = {}
+    pivot[f][c] = (pivot[f][c] || 0) + v
+    totFila[f]  = (totFila[f]  || 0) + v
+    totCol[c]   = (totCol[c]   || 0) + v
+    grandTotal += v
+  })
+
+  const fmtPivot = (v) => {
+    if (!v) return <span style={{color:'var(--muted)'}}>—</span>
+    if (pivotMoneda === 'ARS') return <span className="mono" style={{fontSize:11}}>${Number(v).toLocaleString('es-AR',{maximumFractionDigits:0})}</span>
+    return <span className="mono" style={{fontSize:11}}>{fmtUSD(v)}</span>
+  }
+
+  const SectionToggle = ({label, color, open, onToggle, children}) => (
+    <div className="card">
+      <div className="card-hdr" style={{cursor:'pointer',userSelect:'none'}} onClick={onToggle}>
+        <span className="card-title" style={{color}}>{open?'▼':'▶'} {label}</span>
+      </div>
+      {open && <div style={{padding:'14px 16px'}}>{children}</div>}
+    </div>
+  )
 
   return (
     <>
-      <div className="kpi-row">
-        <div className="kpi"><div className="kpi-lbl">Ingresos Cotizados</div><div className="kpi-val cb">{fmtUSD(ingreso)}</div><div className="kpi-sub">USD · Facturables</div></div>
-        <div className="kpi"><div className="kpi-lbl">Costo Facturables Real</div><div className="kpi-val cw">{fmtUSD(costoReal)}</div><div className="kpi-sub">Desde alocaciones</div></div>
-        <div className="kpi"><div className="kpi-lbl">Costo Operativo</div><div className="kpi-val cr">{fmtUSD(totalOpCosto)}</div><div className="kpi-sub">Personal, bunkering, etc.</div></div>
-        <div className="kpi"><div className="kpi-lbl">Ingreso Operativo</div><div className="kpi-val cg">{fmtUSD(totalOpIng)}</div><div className="kpi-sub">Daily hire + extras reales</div></div>
-        <div className="kpi"><div className="kpi-lbl">CM Facturables</div><div className="kpi-val cg">{cm}%</div><div className="kpi-sub">(Ingreso − Costo) / Ingreso</div></div>
+      {/* ── KPIs globales ── */}
+      <div className="kpi-row" style={{gridTemplateColumns:'repeat(4,1fr)'}}>
+        <div className="kpi"><div className="kpi-lbl">Ingresos Facturables</div><div className="kpi-val cb">{fmtUSD(ingreso)}</div><div className="kpi-sub">Cotizado al cliente</div></div>
+        <div className="kpi"><div className="kpi-lbl">No Facturables (c/IVA)</div><div className="kpi-val cw">{fmtUSD(totalNFconIVA)}</div><div className="kpi-sub">Alistamiento · {ocsNF.length} OC</div></div>
+        <div className="kpi"><div className="kpi-lbl">Resultado Operativo</div><div className="kpi-val" style={{color:resultadoOp>=0?'#059669':'#DC2626'}}>{fmtUSD(resultadoOp)}</div><div className="kpi-sub">Ing. − Costo operativo</div></div>
+        <div className="kpi"><div className="kpi-lbl">CM Facturables</div><div className="kpi-val cg">{cm}%</div><div className="kpi-sub">(Ing − Costo real) / Ing</div></div>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
-        <div className="card">
-          <div className="card-hdr"><span className="card-title">Facturables — Ejecución</span></div>
-          <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:12}}>
-            <div>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:5,fontSize:12}}><span style={{color:'var(--muted)'}}>Cobrado vs Cotizado</span><strong>{fmtUSD(cobrado)} / {fmtUSD(ingreso)}</strong></div>
-              <div className="prog-wrap"><div className="prog" style={{width:ingreso>0?`${Math.min(cobrado/ingreso*100,100)}%`:'0%',background:'linear-gradient(90deg,#047857,#10b981)'}} /></div>
+
+      {/* ── 3 cards resumen por bloque ── */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:16}}>
+
+        {/* Facturables */}
+        <div className="card" style={{marginBottom:0}}>
+          <div className="card-hdr"><span className="card-title" style={{color:'#1E40AF'}}>Facturables</span></div>
+          <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:8,fontSize:12}}>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>Ingreso cotizado</span><strong className="cb">{fmtUSD(ingreso)}</strong></div>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>Costo presupuestado</span><strong>{fmtUSD(costoPres)}</strong></div>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>Costo real (alocado)</span><strong className="cg">{fmtUSD(costoReal)}</strong></div>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>Cobrado al cliente</span><strong className="cg">{fmtUSD(cobrado)}</strong></div>
+            <div style={{marginTop:4}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4,fontSize:11}}><span style={{color:'var(--muted)'}}>Cobro</span><span>{cobrado>0?Math.round(cobrado/ingreso*100):0}%</span></div>
+              <div className="prog-wrap"><div className="prog" style={{width:ingreso>0?`${Math.min(cobrado/ingreso*100,100)}%`:'0%',background:'#059669'}} /></div>
             </div>
-            <div>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:5,fontSize:12}}><span style={{color:'var(--muted)'}}>Costo real vs Presupuesto</span><strong>{fmtUSD(costoReal)} / {fmtUSD(costoPres)}</strong></div>
-              <div className="prog-wrap"><div className="prog" style={{width:costoPres>0?`${Math.min(costoReal/costoPres*100,100)}%`:'0%',background:'linear-gradient(90deg,#1a4a7a,#235C96)'}} /></div>
+            {noPlan.length>0&&<div style={{marginTop:4,fontSize:11,color:'#92400E',fontWeight:600}}>⚠ {noPlan.length} costos no planeados: {fmtUSD(noPlan.reduce((s,a)=>s+(a.monto_usd||0),0))}</div>}
+          </div>
+        </div>
+
+        {/* No Facturables */}
+        <div className="card" style={{marginBottom:0}}>
+          <div className="card-hdr"><span className="card-title" style={{color:'#92400E'}}>No Facturables</span></div>
+          <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:8,fontSize:12}}>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>OC s/IVA equiv. USD</span><strong>{fmtUSD(totalNFsinIVA)}</strong></div>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>OC c/IVA equiv. USD</span><strong className="cw">{fmtUSD(totalNFconIVA)}</strong></div>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>Total OC</span><strong>{ocsNF.length}</strong></div>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>Sin zona asignada</span>
+              <strong style={{color:ocsNF.filter(o=>!o.zona_id).length>0?'#DC2626':'#059669'}}>
+                {ocsNF.filter(o=>!o.zona_id).length}
+              </strong>
+            </div>
+            <div style={{marginTop:4}}>
+              {[...new Map(ocsNF.map(o=>[o.zona_id||'__nz__',o.cpt_zonas_trabajo?.nombre||'Sin zona'])).entries()].slice(0,4).map(([k,nombre])=>{
+                const tot = ocsNF.filter(o=>(o.zona_id||'__nz__')===k).reduce((s,o)=>s+(o.monto_usd_con_iva||0),0)
+                return <div key={k} style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--muted)',marginBottom:2}}><span>{nombre}</span><span className="mono">{fmtUSD(tot)}</span></div>
+              })}
             </div>
           </div>
         </div>
-        <div className="card">
-          <div className="card-hdr"><span className="card-title">Operación — Resultado</span></div>
-          <div style={{padding:'14px 16px',display:'flex',flexDirection:'column',gap:10,fontSize:13}}>
-            <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>Ingresos reales</span><strong className="cg">+{fmtUSD(totalOpIng)}</strong></div>
+
+        {/* Operación */}
+        <div className="card" style={{marginBottom:0}}>
+          <div className="card-hdr"><span className="card-title" style={{color:'#065F46'}}>Operación</span></div>
+          <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:8,fontSize:12}}>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>Ingresos confirmados</span><strong className="cg">+{fmtUSD(totalOpIng)}</strong></div>
+            <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>Ingresos forecast</span><strong className="cw">{fmtUSD(totalOpFcast)}</strong></div>
             <div style={{display:'flex',justifyContent:'space-between'}}><span style={{color:'var(--muted)'}}>Costos operativos</span><strong className="cr">−{fmtUSD(totalOpCosto)}</strong></div>
-            <div style={{borderTop:'1px solid var(--border)',paddingTop:10,display:'flex',justifyContent:'space-between'}}>
-              <span style={{fontWeight:700}}>Resultado operativo</span>
-              <strong style={{fontSize:16,color:totalOpIng-totalOpCosto>=0?'#059669':'#DC2626'}}>{fmtUSD(totalOpIng-totalOpCosto)}</strong>
+            <div style={{borderTop:'1px solid var(--border)',paddingTop:8,display:'flex',justifyContent:'space-between'}}>
+              <span style={{fontWeight:700}}>Resultado</span>
+              <strong style={{fontSize:14,color:resultadoOp>=0?'#059669':'#DC2626'}}>{resultadoOp>=0?'+':''}{fmtUSD(resultadoOp)}</strong>
             </div>
           </div>
         </div>
       </div>
-      {noPlan.length>0&&(
-        <div className="card">
-          <div className="card-hdr"><span className="card-title">⚠ Costos No Planeados</span><span style={{fontSize:12,color:'#92400E',fontWeight:700}}>{fmtUSD(noPlan.reduce((s,a)=>s+(a.monto_usd||0),0))} USD</span></div>
-          <div className="tbl-wrap" style={{maxHeight:200}}>
-            <table>
-              <thead><tr><th>OC</th><th>Proveedor</th><th>Ítem</th><th style={{textAlign:'right'}}>USD</th></tr></thead>
+
+      {/* ── Secciones expandibles ── */}
+      <SectionToggle label="Facturables — detalle por categoría" color="#1E40AF" open={expandFact} onToggle={()=>setExpandFact(v=>!v)}>
+        <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+          <thead><tr><th style={{padding:'6px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Categoría</th><th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Costo Pres.</th><th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Costo Real</th><th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>% del total</th></tr></thead>
+          <tbody>
+            {CATS.map(cat=>{
+              const pres = items.reduce((s,i)=>s+(i.costos?.[cat]?.pres?.usd||0),0)
+              const real = items.reduce((s,i)=>s+(i.costos_real?.[cat]||0),0)
+              const pct  = costoReal>0?(real/costoReal*100).toFixed(1):0
+              if (!pres && !real) return null
+              return (
+                <tr key={cat}>
+                  <td style={{padding:'7px 8px'}}><span className="tag t-blue">{CATS_LABEL[cat]}</span></td>
+                  <td style={{padding:'7px 8px',textAlign:'right'}} className="mono">{fmtUSD(pres)}</td>
+                  <td style={{padding:'7px 8px',textAlign:'right'}} className={`mono ${real>pres?'cr':'cg'}`}>{fmtUSD(real)}</td>
+                  <td style={{padding:'7px 8px',textAlign:'right',fontSize:11,color:'var(--muted)'}}>{pct}%</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        {noPlan.length>0&&(
+          <div style={{marginTop:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:'#92400E',marginBottom:6}}>⚠ Costos no planeados</div>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:11}}>
+              <thead><tr><th style={{padding:'4px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,borderBottom:'1px solid var(--border)'}}>OC</th><th style={{padding:'4px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,borderBottom:'1px solid var(--border)'}}>Proveedor</th><th style={{padding:'4px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,borderBottom:'1px solid var(--border)'}}>Ítem</th><th style={{padding:'4px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,borderBottom:'1px solid var(--border)'}}>USD</th></tr></thead>
               <tbody>
                 {noPlan.map((a,i)=>(
                   <tr key={i} style={{background:'#FFFBEB'}}>
-                    <td className="mono cb">{a.cpt_oc?.numero_oc}</td>
-                    <td style={{fontSize:11}}>{a.cpt_oc?.proveedor}</td>
-                    <td style={{fontSize:11}}>{a.cpt_items_proyecto?.descripcion}</td>
-                    <td className="mono cw" style={{textAlign:'right'}}>{fmtUSD(a.monto_usd)}</td>
+                    <td style={{padding:'4px 8px'}} className="mono cb">{a.cpt_oc?.numero_oc}</td>
+                    <td style={{padding:'4px 8px'}}>{a.cpt_oc?.proveedor}</td>
+                    <td style={{padding:'4px 8px'}}>{a.cpt_items_proyecto?.descripcion}</td>
+                    <td style={{padding:'4px 8px',textAlign:'right'}} className="mono cw">{fmtUSD(a.monto_usd)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+      </SectionToggle>
+
+      <SectionToggle label="No Facturables — detalle por proveedor" color="#92400E" open={expandNF} onToggle={()=>setExpandNF(v=>!v)}>
+        {ocsNF.length===0
+          ? <div style={{color:'var(--muted)',fontSize:12}}>Sin OC de alistamiento cargadas</div>
+          : (() => {
+              const porProv = {}
+              ocsNF.forEach(o=>{
+                const k = o.proveedor||'—'
+                if (!porProv[k]) porProv[k]={sinIVA:0,conIVA:0,count:0,cuit:o.cuit_proveedor||'—'}
+                porProv[k].sinIVA += o.monto_usd_sin_iva||0
+                porProv[k].conIVA += o.monto_usd_con_iva||0
+                porProv[k].count++
+              })
+              return (
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+                  <thead><tr>
+                    <th style={{padding:'6px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Proveedor</th>
+                    <th style={{padding:'6px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>CUIT</th>
+                    <th style={{padding:'6px 8px',textAlign:'center',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>OC</th>
+                    <th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>USD s/IVA</th>
+                    <th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>USD c/IVA</th>
+                    <th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>% del total</th>
+                  </tr></thead>
+                  <tbody>
+                    {Object.entries(porProv).sort((a,b)=>b[1].conIVA-a[1].conIVA).map(([prov,v])=>(
+                      <tr key={prov}>
+                        <td style={{padding:'7px 8px',fontWeight:600}}>{prov}</td>
+                        <td style={{padding:'7px 8px'}} className="mono" style={{fontSize:10,color:'var(--muted)'}}>{v.cuit}</td>
+                        <td style={{padding:'7px 8px',textAlign:'center',color:'var(--muted)'}}>{v.count}</td>
+                        <td style={{padding:'7px 8px',textAlign:'right'}} className="mono">{fmtUSD(v.sinIVA)}</td>
+                        <td style={{padding:'7px 8px',textAlign:'right'}} className="mono cw">{fmtUSD(v.conIVA)}</td>
+                        <td style={{padding:'7px 8px',textAlign:'right',fontSize:11,color:'var(--muted)'}}>{totalNFconIVA>0?(v.conIVA/totalNFconIVA*100).toFixed(1):0}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
+            })()
+        }
+      </SectionToggle>
+
+      <SectionToggle label="Operación — detalle por categoría" color="#065F46" open={expandOp} onToggle={()=>setExpandOp(v=>!v)}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:'var(--r)',marginBottom:8,textTransform:'uppercase',letterSpacing:.5}}>Costos</div>
+            {(() => {
+              const porCat = {}
+              opCostos.forEach(r=>{ const k=r.cpt_categorias?.nombre||'—'; porCat[k]=(porCat[k]||0)+(r.monto_usd||0) })
+              return Object.entries(porCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>(
+                <div key={k} style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:4}}>
+                  <span style={{color:'var(--text)'}}>{k}</span><span className="mono cr">{fmtUSD(v)}</span>
+                </div>
+              ))
+            })()}
+            <div style={{borderTop:'1px solid var(--border)',marginTop:6,paddingTop:6,display:'flex',justifyContent:'space-between',fontSize:12,fontWeight:700}}>
+              <span>Total costos</span><span className="mono cr">{fmtUSD(totalOpCosto)}</span>
+            </div>
+          </div>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:'var(--g)',marginBottom:8,textTransform:'uppercase',letterSpacing:.5}}>Ingresos</div>
+            {(() => {
+              const porCat = {}
+              opIngresos.forEach(r=>{ const k=r.cpt_categorias?.nombre||'—'; porCat[k]=(porCat[k]||0)+(r.monto_usd||0) })
+              return Object.entries(porCat).sort((a,b)=>b[1]-a[1]).map(([k,v])=>(
+                <div key={k} style={{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:4}}>
+                  <span style={{color:'var(--text)'}}>{k}</span><span className="mono cg">{fmtUSD(v)}</span>
+                </div>
+              ))
+            })()}
+            <div style={{borderTop:'1px solid var(--border)',marginTop:6,paddingTop:6,display:'flex',justifyContent:'space-between',fontSize:12,fontWeight:700}}>
+              <span>Total ingresos</span><span className="mono cg">{fmtUSD(totalOpIng+totalOpFcast)}</span>
+            </div>
+          </div>
         </div>
-      )}
+      </SectionToggle>
+
+      {/* ── Tabla Pivot ── */}
+      <div className="card">
+        <div className="card-hdr">
+          <span className="card-title">Tabla Pivot</span>
+          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <span style={{fontSize:10,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>Filas</span>
+              <select value={pivotFila} onChange={e=>setPivotFila(e.target.value)} style={{fontSize:11,padding:'3px 7px',width:'auto'}}>
+                {FILA_OPTS.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <span style={{fontSize:10,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>Columnas</span>
+              <select value={pivotCol} onChange={e=>setPivotCol(e.target.value)} style={{fontSize:11,padding:'3px 7px',width:'auto'}}>
+                {COL_OPTS.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <span style={{fontSize:10,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>Filtro</span>
+              <select value={pivotFiltroTipo} onChange={e=>setPivotFiltroTipo(e.target.value)} style={{fontSize:11,padding:'3px 7px',width:'auto'}}>
+                {TIPO_OPTS.map(o=><option key={o.id} value={o.id}>{o.label}</option>)}
+              </select>
+            </div>
+            <div style={{display:'flex',gap:0,borderRadius:6,overflow:'hidden',border:'1px solid var(--border)'}}>
+              {['USD','ARS'].map(m=>(
+                <button key={m} onClick={()=>setPivotMoneda(m)} style={{padding:'4px 10px',fontSize:11,fontWeight:700,border:'none',cursor:'pointer',background:pivotMoneda===m?'var(--blue)':'#fff',color:pivotMoneda===m?'#fff':'var(--muted)'}}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {filaKeys.length === 0
+          ? <div className="state-msg">Sin datos para los filtros seleccionados</div>
+          : <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:11}}>
+                <thead>
+                  <tr style={{background:'#FAFBFC'}}>
+                    <th style={{padding:'8px 12px',textAlign:'left',color:'var(--muted)',fontWeight:700,fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)',position:'sticky',left:0,background:'#FAFBFC',minWidth:160}}>
+                      {FILA_OPTS.find(o=>o.id===pivotFila)?.label} \ {COL_OPTS.find(o=>o.id===pivotCol)?.label}
+                    </th>
+                    {colKeys.map(c=>(
+                      <th key={c} style={{padding:'8px 12px',textAlign:'right',color:'var(--muted)',fontWeight:700,fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)',whiteSpace:'nowrap'}}>
+                        {c}
+                      </th>
+                    ))}
+                    <th style={{padding:'8px 12px',textAlign:'right',color:'var(--navy)',fontWeight:800,fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)',background:'#F0F4F8'}}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filaKeys.map((fila,fi)=>(
+                    <tr key={fila} style={{background:fi%2===0?'#fff':'#FAFBFC'}}>
+                      <td style={{padding:'7px 12px',fontWeight:600,position:'sticky',left:0,background:fi%2===0?'#fff':'#FAFBFC',borderBottom:'1px solid var(--border)',maxWidth:200,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={fila}>
+                        {fila}
+                      </td>
+                      {colKeys.map(col=>(
+                        <td key={col} style={{padding:'7px 12px',textAlign:'right',borderBottom:'1px solid var(--border)'}}>
+                          {fmtPivot(pivot[fila]?.[col])}
+                        </td>
+                      ))}
+                      <td style={{padding:'7px 12px',textAlign:'right',fontWeight:700,borderBottom:'1px solid var(--border)',background:'#F0F4F8'}}>
+                        {fmtPivot(totFila[fila])}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{background:'#E8EDF5'}}>
+                    <td style={{padding:'8px 12px',fontWeight:800,fontSize:11,position:'sticky',left:0,background:'#E8EDF5'}}>Total</td>
+                    {colKeys.map(col=>(
+                      <td key={col} style={{padding:'8px 12px',textAlign:'right',fontWeight:700,fontSize:11}}>
+                        {fmtPivot(totCol[col])}
+                      </td>
+                    ))}
+                    <td style={{padding:'8px 12px',textAlign:'right',fontWeight:800,fontSize:12,color:'var(--navy)'}}>
+                      {fmtPivot(grandTotal)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+        }
+      </div>
     </>
   )
 }
