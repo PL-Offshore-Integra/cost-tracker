@@ -398,33 +398,54 @@ function TabOverview({ proyecto }) {
   const resultadoOp  = totalOpIng - totalOpCosto
 
   // ── Construcción de filas para la pivot ───────────────────────────────────
-  // Cada "registro" tiene: tipo, proveedor, cuit, categoria, mes, monto_usd, monto_ars, moneda_orig
+  // esIngreso = true → valor positivo (entrada de dinero)
+  // esIngreso = false/undefined → valor negativo (salida de dinero)
   const buildPivotData = () => {
     const rows = []
 
-    // Facturables: alocaciones de OC
+    // Facturables — Ingresos (facturas al cliente)
+    fventa.forEach(f => {
+      rows.push({
+        tipo: 'Fact. Ingreso',
+        bloque: 'Facturables',
+        proveedor: proyecto.cliente || '—',
+        cuit: '—',
+        categoria: 'Ingreso cliente',
+        mes: f.fecha_emision ? f.fecha_emision.slice(0,7) : '—',
+        usd_sin: f.monto_usd || 0,
+        usd_con: f.monto_usd || 0,
+        ars_sin: null,
+        ars_con: null,
+        moneda_orig: 'USD',
+        esIngreso: true,
+      })
+    })
+
+    // Facturables — Costos (alocaciones de OC)
     alocs.forEach(a => {
       const oc = a.cpt_oc || {}
       rows.push({
-        tipo: 'Facturable',
+        tipo: 'Fact. Costo',
+        bloque: 'Facturables',
         proveedor: oc.proveedor || '—',
         cuit: '—',
         categoria: a.categoria ? (CATS_LABEL[a.categoria] || a.categoria) : '—',
         mes: '—',
         usd_sin: a.monto_usd || 0,
-        usd_con: a.monto_usd || 0, // facturables no tienen IVA separado en alocaciones
+        usd_con: a.monto_usd || 0,
         ars_sin: null,
         ars_con: null,
         moneda_orig: 'USD',
+        esIngreso: false,
       })
     })
 
-    // No Facturables: OCs NF
+    // No Facturables — Costos (OCs NF)
     ocsNF.forEach(o => {
-      const mesRaw = o.fecha_emision ? o.fecha_emision.slice(0,7) : '—'
-      const mes = mesRaw !== '—' ? mesRaw : '—'
+      const mes = o.fecha_emision ? o.fecha_emision.slice(0,7) : '—'
       rows.push({
         tipo: 'No Facturable',
+        bloque: 'No Facturables',
         proveedor: o.proveedor || '—',
         cuit: o.cuit_proveedor || '—',
         categoria: o.descripcion || '—',
@@ -434,14 +455,16 @@ function TabOverview({ proyecto }) {
         ars_sin: o.moneda === 'ARS' ? (o.monto_sin_iva || 0) : null,
         ars_con: o.moneda === 'ARS' ? (o.monto_sin_iva * (1 + (o.iva_pct||0)/100)) : null,
         moneda_orig: o.moneda || 'ARS',
+        esIngreso: false,
       })
     })
 
-    // Operación: costos
+    // Operación — Costos
     opCostos.forEach(r => {
       const mes = r.fecha ? r.fecha.slice(0,7) : '—'
       rows.push({
         tipo: 'Op. Costo',
+        bloque: 'Operación',
         proveedor: r.descripcion || '—',
         cuit: '—',
         categoria: r.cpt_categorias?.nombre || '—',
@@ -449,16 +472,18 @@ function TabOverview({ proyecto }) {
         usd_sin: r.monto_usd || 0,
         usd_con: r.monto_usd || 0,
         ars_sin: r.moneda === 'ARS' ? (r.monto || 0) : null,
-        ars_con: r.moneda === 'ARS' ? (r.monto || 0) : null, // op costos no tienen IVA separado
+        ars_con: r.moneda === 'ARS' ? (r.monto || 0) : null,
         moneda_orig: r.moneda || 'USD',
+        esIngreso: false,
       })
     })
 
-    // Operación: ingresos
+    // Operación — Ingresos
     opIngresos.forEach(r => {
       const mes = r.fecha ? r.fecha.slice(0,7) : '—'
       rows.push({
         tipo: 'Op. Ingreso',
+        bloque: 'Operación',
         proveedor: r.descripcion || '—',
         cuit: '—',
         categoria: r.cpt_categorias?.nombre || '—',
@@ -476,58 +501,74 @@ function TabOverview({ proyecto }) {
   }
 
   const FILA_OPTS = [
-    {id:'proveedor',  label:'Proveedor'},
-    {id:'cuit',       label:'CUIT'},
-    {id:'categoria',  label:'Categoría'},
-    {id:'mes',        label:'Mes'},
-  ]
-  const COL_OPTS = [
-    {id:'tipo',      label:'Tipo'},
+    {id:'proveedor', label:'Proveedor'},
+    {id:'cuit',      label:'CUIT'},
     {id:'categoria', label:'Categoría'},
     {id:'mes',       label:'Mes'},
   ]
+  const COL_OPTS = [
+    {id:'tipo',   label:'Tipo'},
+    {id:'bloque', label:'Bloque'},
+    {id:'mes',    label:'Mes'},
+  ]
   const TIPO_OPTS = [
-    {id:'todos',        label:'Todos'},
-    {id:'Facturable',   label:'Facturables'},
-    {id:'No Facturable',label:'No Facturables'},
-    {id:'Op. Costo',    label:'Op. Costos'},
-    {id:'Op. Ingreso',  label:'Op. Ingresos'},
+    {id:'todos',          label:'Todos'},
+    {id:'Fact. Ingreso',  label:'Fact. Ingresos'},
+    {id:'Fact. Costo',    label:'Fact. Costos'},
+    {id:'No Facturable',  label:'No Facturables'},
+    {id:'Op. Costo',      label:'Op. Costos'},
+    {id:'Op. Ingreso',    label:'Op. Ingresos'},
   ]
 
-  const allRows   = buildPivotData()
-  const filtered  = pivotFiltroTipo === 'todos' ? allRows : allRows.filter(r=>r.tipo===pivotFiltroTipo)
-  const getVal = (r) => {
+  const allRows  = buildPivotData()
+  const filtered = pivotFiltroTipo === 'todos' ? allRows : allRows.filter(r=>r.tipo===pivotFiltroTipo)
+
+  const getAbsVal = (r) => {
     if (pivotMoneda === 'USD_sin') return r.usd_sin || 0
     if (pivotMoneda === 'USD_con') return r.usd_con || 0
     if (pivotMoneda === 'ARS_sin') return r.ars_sin != null ? r.ars_sin : (r.usd_sin || 0)
     if (pivotMoneda === 'ARS_con') return r.ars_con != null ? r.ars_con : (r.usd_con || 0)
     return r.usd_sin || 0
   }
-  const getFila   = (r) => r[pivotFila] || '—'
-  const getCol    = (r) => r[pivotCol]  || '—'
+  // Ingresos suman positivo, costos restan
+  const getSignedVal = (r) => r.esIngreso ? getAbsVal(r) : -getAbsVal(r)
 
-  // Construir pivot
+  const getFila = (r) => r[pivotFila] || '—'
+  const getCol  = (r) => r[pivotCol]  || '—'
+
+  // Construir pivot con valores con signo
   const filaKeys = [...new Set(filtered.map(getFila))].sort()
   const colKeys  = [...new Set(filtered.map(getCol))].sort()
   const pivot    = {}
   const totFila  = {}
   const totCol   = {}
-  let grandTotal = 0
+  const costoFila = {}; const ingresoFila = {}
+  let grandTotal = 0, grandCosto = 0, grandIngreso = 0
 
   filtered.forEach(r => {
-    const f = getFila(r); const c = getCol(r); const v = getVal(r)
+    const f = getFila(r); const c = getCol(r)
+    const v = getSignedVal(r); const abs = getAbsVal(r)
     if (!pivot[f]) pivot[f] = {}
     pivot[f][c] = (pivot[f][c] || 0) + v
     totFila[f]  = (totFila[f]  || 0) + v
     totCol[c]   = (totCol[c]   || 0) + v
     grandTotal += v
+    if (r.esIngreso) { ingresoFila[f] = (ingresoFila[f]||0)+abs; grandIngreso+=abs }
+    else             { costoFila[f]   = (costoFila[f]  ||0)+abs; grandCosto  +=abs }
   })
 
-  const fmtPivot = (v) => {
-    if (!v) return <span style={{color:'var(--muted)'}}>—</span>
-    const esARS = pivotMoneda.startsWith('ARS')
-    if (esARS) return <span className="mono" style={{fontSize:11}}>${Number(v).toLocaleString('es-AR',{maximumFractionDigits:0})}</span>
-    return <span className="mono" style={{fontSize:11}}>{fmtUSD(v)}</span>
+  const esARS = pivotMoneda.startsWith('ARS')
+  const fmtAbs = (v) => {
+    if (v == null || v === 0) return '—'
+    if (esARS) return '$'+Number(v).toLocaleString('es-AR',{maximumFractionDigits:0})
+    return fmtUSD(v)
+  }
+  const fmtSigned = (v) => {
+    if (v == null || v === 0) return <span style={{color:'var(--muted)'}}>—</span>
+    const abs = Math.abs(v)
+    const str = esARS ? '$'+Number(abs).toLocaleString('es-AR',{maximumFractionDigits:0}) : fmtUSD(abs)
+    if (v > 0) return <span className="mono" style={{fontSize:11,color:'#059669',fontWeight:600}}>+{str}</span>
+    return <span className="mono" style={{fontSize:11,color:'#DC2626'}}>−{str}</span>
   }
 
   const SectionToggle = ({label, color, open, onToggle, children}) => (
@@ -755,6 +796,26 @@ function TabOverview({ proyecto }) {
           </div>
         </div>
 
+        {/* KPIs de la selección activa */}
+        {filtered.length > 0 && (
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:0,borderBottom:'1px solid var(--border)'}}>
+            <div style={{padding:'10px 16px',borderRight:'1px solid var(--border)'}}>
+              <div style={{fontSize:10,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',marginBottom:4}}>Ingresos (selección)</div>
+              <div style={{fontSize:16,fontWeight:800,color:'#059669'}}>+{fmtAbs(grandIngreso)}</div>
+            </div>
+            <div style={{padding:'10px 16px',borderRight:'1px solid var(--border)'}}>
+              <div style={{fontSize:10,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',marginBottom:4}}>Costos (selección)</div>
+              <div style={{fontSize:16,fontWeight:800,color:'#DC2626'}}>−{fmtAbs(grandCosto)}</div>
+            </div>
+            <div style={{padding:'10px 16px'}}>
+              <div style={{fontSize:10,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',marginBottom:4}}>Resultado neto</div>
+              <div style={{fontSize:16,fontWeight:800,color:grandTotal>=0?'#059669':'#DC2626'}}>
+                {grandTotal>=0?'+':''}{fmtAbs(Math.abs(grandTotal))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {filaKeys.length === 0
           ? <div className="state-msg">Sin datos para los filtros seleccionados</div>
           : <div style={{overflowX:'auto'}}>
@@ -769,7 +830,9 @@ function TabOverview({ proyecto }) {
                         {c}
                       </th>
                     ))}
-                    <th style={{padding:'8px 12px',textAlign:'right',color:'var(--navy)',fontWeight:800,fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)',background:'#F0F4F8'}}>Total</th>
+                    <th style={{padding:'8px 12px',textAlign:'right',color:'var(--navy)',fontWeight:800,fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)',background:'#F0F4F8',whiteSpace:'nowrap'}}>
+                      Resultado
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -780,11 +843,11 @@ function TabOverview({ proyecto }) {
                       </td>
                       {colKeys.map(col=>(
                         <td key={col} style={{padding:'7px 12px',textAlign:'right',borderBottom:'1px solid var(--border)'}}>
-                          {fmtPivot(pivot[fila]?.[col])}
+                          {fmtSigned(pivot[fila]?.[col])}
                         </td>
                       ))}
                       <td style={{padding:'7px 12px',textAlign:'right',fontWeight:700,borderBottom:'1px solid var(--border)',background:'#F0F4F8'}}>
-                        {fmtPivot(totFila[fila])}
+                        {fmtSigned(totFila[fila])}
                       </td>
                     </tr>
                   ))}
@@ -794,11 +857,11 @@ function TabOverview({ proyecto }) {
                     <td style={{padding:'8px 12px',fontWeight:800,fontSize:11,position:'sticky',left:0,background:'#E8EDF5'}}>Total</td>
                     {colKeys.map(col=>(
                       <td key={col} style={{padding:'8px 12px',textAlign:'right',fontWeight:700,fontSize:11}}>
-                        {fmtPivot(totCol[col])}
+                        {fmtSigned(totCol[col])}
                       </td>
                     ))}
-                    <td style={{padding:'8px 12px',textAlign:'right',fontWeight:800,fontSize:12,color:'var(--navy)'}}>
-                      {fmtPivot(grandTotal)}
+                    <td style={{padding:'8px 12px',textAlign:'right',fontWeight:800,fontSize:12,color:grandTotal>=0?'#059669':'#DC2626'}}>
+                      {grandTotal>=0?'+':''}{fmtAbs(Math.abs(grandTotal))}
                     </td>
                   </tr>
                 </tfoot>
