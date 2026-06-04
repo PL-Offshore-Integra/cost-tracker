@@ -166,17 +166,23 @@ const CSS = `
   --g:#059669;--r:#DC2626;--w:#D97706;
   --sans:'Montserrat',sans-serif;--mono:'DM Mono',monospace;
 }
-body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13px;min-height:100vh}
+
+/* ── Overflow guards obligatorios §11.7 ── */
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;overflow-x:hidden}
+.app-wrap{display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden}
+.main{flex:1;padding:24px 28px;overflow-x:hidden;overflow-y:auto}
+
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-.app-wrap{display:flex;flex-direction:column;min-height:100vh}
-.header{background:var(--navy);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:58px;border-bottom:1px solid rgba(184,148,42,.2);flex-shrink:0}
+
+/* ── Header ── */
+.header{background:var(--navy);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:58px;border-bottom:1px solid rgba(184,148,42,.2);flex-shrink:0;flex-wrap:wrap;gap:8px}
 .hdr-brand{display:flex;align-items:center;gap:12px}
 .hdr-logo{width:30px;height:30px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(255,255,255,.2)}
 .hdr-divider{width:1px;height:22px;background:rgba(184,148,42,.25)}
 .hdr-name{font-size:12px;font-weight:800;color:#fff;letter-spacing:2px;text-transform:uppercase}
 .hdr-sub{font-size:9px;color:var(--gold);letter-spacing:1px;font-family:var(--mono);text-transform:uppercase}
-.hdr-right{display:flex;align-items:center;gap:10px}
+.hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .hdr-sel{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;width:220px;font-family:var(--sans)}
 .hdr-sel option{background:#0B1629;color:#fff}
 .hdr-btn{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.55);font-family:var(--sans);font-size:10px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer;letter-spacing:.3px}
@@ -184,6 +190,8 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 .hdr-btn-gold{background:var(--gold);color:var(--navy);border:none;font-family:var(--sans);font-size:10px;font-weight:700;padding:5px 12px;border-radius:6px;cursor:pointer}
 .hdr-btn-gold:hover{background:var(--gold2)}
 .hdr-email{font-size:10px;font-family:var(--mono);color:rgba(255,255,255,.35)}
+
+/* ── Tabs ── */
 .tabs-main{display:flex;background:var(--navy);border-bottom:1px solid rgba(184,148,42,.15);padding:0 28px;overflow-x:auto;flex-shrink:0}
 .tabs-sub{display:flex;background:#F8FAFC;border-bottom:1px solid var(--border);padding:0 16px;overflow-x:auto;flex-shrink:0;gap:6px;align-items:center;min-height:40px}
 .tab{padding:13px 16px;font-size:12px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.4);border-bottom:2px solid transparent;white-space:nowrap;letter-spacing:.3px;transition:all .15s;user-select:none}
@@ -192,16 +200,24 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 .stab{padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--sans);transition:all .15s;white-space:nowrap}
 .stab:hover{color:var(--text);border-color:var(--muted)}
 .stab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
-.sub-tabs{display:flex;gap:8px;margin-bottom:16px}
-.main{flex:1;padding:24px 28px;overflow-y:auto}
+.sub-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+
+/* ── Cards ── */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 3px rgba(11,22,41,.06)}
-.card-hdr{padding:11px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:#FAFBFC}
+.card-hdr{padding:11px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:#FAFBFC;flex-wrap:wrap;gap:8px}
 .card-title{font-size:13px;font-weight:700;color:var(--navy)}
+
+/* ── KPI grids — §11.6 siempre clase CSS, nunca inline gridTemplateColumns ── */
 .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.kpi-row-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.kpi-row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.kpi-row-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
 .kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:15px 16px;box-shadow:0 1px 3px rgba(11,22,41,.06)}
 .kpi-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:600}
 .kpi-val{font-size:22px;font-weight:800;line-height:1;color:var(--navy)}
 .kpi-sub{font-size:11px;color:var(--muted);margin-top:5px}
+
+/* ── Tables ── */
 .tbl-wrap{overflow-x:auto;max-height:400px;overflow-y:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}
 th{padding:8px 12px;text-align:left;color:var(--muted);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);background:#FAFBFC;white-space:nowrap}
@@ -211,6 +227,8 @@ tr:hover td{background:#F7F9FC}
 .mono{font-family:'Courier New',monospace;font-size:11px}
 .inline-edit{background:#fff;border:1px solid var(--blue);color:var(--text);padding:3px 6px;border-radius:4px;font-size:11px;font-family:'Courier New',monospace;width:90px}
 .inline-edit:focus{outline:none;box-shadow:0 0 0 2px rgba(35,92,150,.2)}
+
+/* ── Badges / chips / tags ── */
 .chip{display:inline-flex;align-items:center;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
 .c-ok{background:#D1FAE5;color:#065F46;border:1px solid #A7F3D0}
 .c-pend{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A}
@@ -225,37 +243,61 @@ tr:hover td{background:#F7F9FC}
 .t-red{background:#FEE2E2;color:#991B1B}
 .t-gray{background:#F3F4F6;color:#6B7280}
 .cg{color:#059669}.cr{color:#DC2626}.cw{color:#D97706}.cb{color:#235C96}
+
+/* ── Buttons ── */
 .btn{background:#235C96;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-family:var(--sans);font-weight:700;cursor:pointer;transition:all .15s}
 .btn:hover{background:#1a4a7a}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);padding:6px 14px;border-radius:6px;font-size:12px;font-family:var(--sans);font-weight:600;cursor:pointer}
 .btn-ghost:hover{color:var(--text);border-color:var(--muted)}
 .btn-active{background:#235C96;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-family:var(--sans);font-weight:700;cursor:pointer}
+
+/* ── Form inputs ── */
 select,input[type=text],input[type=number],input[type=date],input[type=email],input[type=password],textarea{background:#fff;border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:12px;font-family:var(--sans);width:100%;outline:none;transition:border-color .15s}
 select:focus,input:focus,textarea:focus{border-color:#235C96;box-shadow:0 0 0 3px rgba(35,92,150,.1)}
 textarea{resize:vertical;min-height:60px}
 .form-row{margin-bottom:12px}
 .form-row label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+
+/* ── Grids de formulario — §11.6 regla obligatoria ── */
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:0}
+
+/* ── Progreso ── */
 .prog-wrap{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
 .prog{height:100%;border-radius:3px;transition:width .3s}
 .tbl-foot{padding:10px 16px;background:#FAFBFC;border-top:1px solid var(--border);display:flex;gap:20px;font-size:12px;flex-wrap:wrap;align-items:center}
+
+/* ── Alerts ── */
 .alert{border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:8px;line-height:1.5}
 .alert-ok{background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46}
 .alert-err{background:#FEF2F2;border:1px solid #FECACA;color:#991B1B}
 .alert-warn{background:#FFFBEB;border:1px solid #FDE68A;color:#92400E}
 .alert-info{background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF}
+
+/* ── Modals ── */
 .overlay{display:none;position:fixed;inset:0;background:rgba(11,22,41,.55);z-index:200;align-items:center;justify-content:center}
 .overlay.open{display:flex}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:26px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(11,22,41,.2)}
 .modal h3{font-size:15px;font-weight:800;color:var(--navy);margin-bottom:18px}
 .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
+
+/* ── Misc ── */
 .state-msg{padding:32px;text-align:center;color:var(--muted);font-size:12px}
 .section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
 .reminder-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap}
 .r-due{background:#FEE2E2;color:#991B1B;border:1px solid #FECACA}
 .r-soon{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A}
 .r-ok{background:#F3F4F6;color:#6B7280;border:1px solid #E5E7EB}
+
+/* ── Mobile nav bar (reemplaza tabs en mobile) ── */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--navy);border-top:1px solid rgba(184,148,42,.2);z-index:100;height:58px}
+.mobile-nav-inner{display:flex;height:100%;overflow-x:auto}
+.mobile-nav-item{flex:1;min-width:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgba(255,255,255,.4);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono);cursor:pointer;border:none;background:transparent;padding:6px 4px;min-height:44px;transition:color .15s}
+.mobile-nav-item.active{color:var(--gold)}
+.mobile-nav-item-icon{font-size:16px;line-height:1}
+
+/* ── Login — Optical Centering Rule §11.12.3 ── */
 .login-wrap{min-height:100vh;display:flex;background:var(--navy);position:relative;overflow:hidden}
 .login-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(135deg,rgba(11,22,41,.92) 0%,rgba(11,22,41,.75) 60%,rgba(11,22,41,.92) 100%)}
 .login-lines{position:absolute;inset:0;z-index:0;background-image:linear-gradient(rgba(184,148,42,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(184,148,42,.04) 1px,transparent 1px);background-size:60px 60px}
@@ -268,8 +310,8 @@ textarea{resize:vertical;min-height:60px}
 .login-title span{color:var(--gold);display:block}
 .login-line{width:48px;height:3px;background:var(--gold);margin:18px 0}
 .login-sub{font-size:13px;color:rgba(255,255,255,.4);line-height:1.7;max-width:300px;font-style:italic}
-.login-right{width:420px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:60px 44px}
-.login-card{width:100%;background:rgba(255,255,255,.04);border:1px solid rgba(184,148,42,.2);border-radius:16px;padding:36px;backdrop-filter:blur(20px)}
+.login-right{width:100%;max-width:460px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:60px 40px}
+.login-card{width:min(340px,80vw);max-width:340px;margin:0 auto;background:rgba(255,255,255,.04);border:1px solid rgba(184,148,42,.2);border-radius:16px;padding:36px;backdrop-filter:blur(20px)}
 .login-card-title{font-size:15px;font-weight:700;color:#fff;margin-bottom:4px}
 .login-card-sub{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);letter-spacing:1px;margin-bottom:24px;text-transform:uppercase}
 .login-fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
@@ -277,13 +319,77 @@ textarea{resize:vertical;min-height:60px}
 .login-fg input{border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 13px;font-size:13px;font-family:var(--sans);color:#fff;background:rgba(255,255,255,.06);outline:none;transition:border-color .15s;width:100%}
 .login-fg input::placeholder{color:rgba(255,255,255,.2)}
 .login-fg input:focus{border-color:var(--gold);background:rgba(255,255,255,.09)}
-.login-submit{width:100%;padding:11px;margin-top:8px;background:var(--gold);color:var(--navy);border:none;border-radius:8px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer}
+.login-submit{width:100%;padding:11px;margin-top:8px;background:var(--gold);color:var(--navy);border:none;border-radius:8px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;min-height:44px}
 .login-submit:hover{background:var(--gold2)}
 .login-submit:disabled{opacity:.5;cursor:not-allowed}
 .login-err{background:rgba(239,68,68,.12);color:#FCA5A5;border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px 13px;font-size:12px;margin-bottom:12px}
 .login-foot{text-align:center;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.2);margin-top:16px;letter-spacing:1px}
 .login-back{text-align:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,.3);cursor:pointer;font-family:var(--mono)}
 .login-back:hover{color:var(--gold)}
+
+/* ══════════════════════════════════════════
+   RESPONSIVE — ≤768px
+   §3.4, §11.6, §11.7, §11.10, §11.12
+   ══════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── Content padding + espacio mobile-nav ── */
+  .main{padding:14px 14px 72px}
+
+  /* ── Header compacto ── */
+  .header{padding:0 14px;height:auto;min-height:54px}
+  .hdr-email{display:none}
+  .hdr-sel{width:160px;font-size:11px}
+
+  /* ── Tabs principales ocultos → mobile-nav los reemplaza ── */
+  .tabs-main{display:none}
+  .mobile-nav{display:block}
+
+  /* ── Sub-tabs scrollables ── */
+  .tabs-sub{padding:0 10px}
+
+  /* ── Grids de formulario: 1 columna ── */
+  .two-col{grid-template-columns:1fr}
+  .grid-3{grid-template-columns:1fr}
+
+  /* ── KPI grids: 2 columnas ── */
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .kpi-row-4{grid-template-columns:1fr 1fr}
+  .kpi-row-3{grid-template-columns:1fr 1fr}
+  .kpi-row-2{grid-template-columns:1fr 1fr}
+
+  /* ── Cards: padding reducido ── */
+  .card-hdr{padding:10px 12px}
+  .kpi{padding:12px 14px}
+  .kpi-val{font-size:18px}
+
+  /* ── Tap targets mínimos §11.10 ── */
+  .btn{min-height:44px}
+  .btn-ghost{min-height:44px}
+  .btn-active{min-height:44px}
+  select,input[type=text],input[type=number],input[type=date],
+  input[type=email],input[type=password]{min-height:44px}
+  .mobile-nav-item{min-height:44px}
+  .login-submit{min-height:48px}
+
+  /* ── Modal footer: botones full-width §11.9 ── */
+  .modal-footer{flex-direction:column;align-items:stretch}
+  .modal-footer .btn{width:100%;justify-content:center;min-height:48px}
+  .modal-footer .btn-ghost{width:100%;justify-content:center;min-height:48px}
+
+  /* ── Login: columna única §11.12.3 ── */
+  .login-split{flex-direction:column}
+  .login-left{display:none}
+  .login-right{max-width:100%;padding:32px 28px 56px;align-items:flex-start}
+  .login-card{width:min(340px,80vw);padding:32px 28px}
+}
+
+@media (max-width: 414px) {
+  .login-card{width:min(332px,80vw)}
+}
+@media (max-width: 390px) {
+  .login-card{width:min(312px,80vw);padding:28px 24px}
+}
 `
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
@@ -584,7 +690,7 @@ function TabOverview({ proyecto }) {
   return (
     <>
       {/* ── 3 cards resumen por bloque ── */}
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginBottom:16}}>
+      <div className="kpi-row-3" style={{marginBottom:16}}>
 
         {/* Facturables */}
         <div className="card" style={{marginBottom:0}}>
@@ -1724,7 +1830,7 @@ function SubTabPrepBarco({ proyecto }) {
 
   return (
     <>
-      <div className="kpi-row" style={{gridTemplateColumns:'repeat(4,1fr)'}}>
+      <div className="kpi-row-4">
         <div className="kpi"><div className="kpi-lbl">Total OC s/IVA</div><div className="kpi-val cb">{fmtUSD(totalSinIVA)}</div><div className="kpi-sub">USD equiv. · {ocs.length} OC</div></div>
         <div className="kpi"><div className="kpi-lbl">Total OC c/IVA</div><div className="kpi-val cw">{fmtUSD(totalConIVA)}</div><div className="kpi-sub">USD equiv.</div></div>
         <div className="kpi"><div className="kpi-lbl">Zonas activas</div><div className="kpi-val cg">{zonas.length}</div><div className="kpi-sub">{zonas.map(z=>z.nombre).join(' · ')||'Sin zonas'}</div></div>
@@ -2263,7 +2369,7 @@ function SubTabOpIngresos({ proyecto }) {
   return (
     <>
       {cats.length===0&&<div className="alert alert-warn">Sin categorías de ingresos operativos — agregá desde <strong>Categorías</strong></div>}
-      <div className="kpi-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+      <div className="kpi-row-3">
         <div className="kpi"><div className="kpi-lbl">Total confirmado</div><div className="kpi-val cg">{fmtUSD(totalReal)}</div><div className="kpi-sub">{registros.filter(r=>!r.es_forecast).length} registros reales</div></div>
         <div className="kpi"><div className="kpi-lbl">Forecast pendiente</div><div className="kpi-val cw">{fmtUSD(totalForecast)}</div><div className="kpi-sub">{registros.filter(r=>r.es_forecast).length} estimados</div></div>
         <div className="kpi"><div className="kpi-lbl">Total proyectado</div><div className="kpi-val cb">{fmtUSD(totalReal+totalForecast)}</div><div className="kpi-sub">Real + forecast</div></div>
@@ -2460,7 +2566,7 @@ function SubTabOpPresupuesto({ proyecto }) {
 
   return (
     <>
-      <div className="kpi-row" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+      <div className="kpi-row-3">
         <div className="kpi"><div className="kpi-lbl">Ingreso operativo real</div><div className="kpi-val cg">{fmtUSD(totalRealI)}</div><div className="kpi-sub">Confirmados</div></div>
         <div className="kpi"><div className="kpi-lbl">Costo operativo real</div><div className="kpi-val cr">{fmtUSD(totalRealC)}</div><div className="kpi-sub">Todos los registros</div></div>
         <div className="kpi"><div className="kpi-lbl">Resultado operativo</div><div className="kpi-val" style={{color:totalRealI-totalRealC>=0?'#059669':'#DC2626'}}>{fmtUSD(totalRealI-totalRealC)}</div><div className="kpi-sub">Ingreso − Costo</div></div>
@@ -2695,6 +2801,20 @@ function CostTrackerApp({ session }) {
               </>
           }
         </div>
+
+        {/* ── Mobile Nav Bar ── */}
+        <nav className="mobile-nav">
+          <div className="mobile-nav-inner">
+            {MAIN_TABS.map(t=>(
+              <button key={t.id} className={`mobile-nav-item${mainTab===t.id?' active':''}`} onClick={()=>selectMainTab(t.id)}>
+                <span className="mobile-nav-item-icon">
+                  {t.id==='overview'?'📊':t.id==='facturables'?'📋':t.id==='nofacturables'?'🚢':t.id==='operacion'?'⚙️':t.id==='cashflow'?'💰':'🏷️'}
+                </span>
+                {t.label.length>8?t.label.slice(0,7)+'…':t.label}
+              </button>
+            ))}
+          </div>
+        </nav>
       </div>
 
       {modalNuevo&&(
