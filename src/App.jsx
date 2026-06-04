@@ -1345,6 +1345,65 @@ function ModalNuevaOC({ categorias, form, setForm, saving, onClose, onSubmit }) 
   )
 }
 
+// ─── MODAL EDITAR OC (Facturables) ───────────────────────────────────────────
+function ModalEditarOC({ oc, categorias, onClose, onSave, onDelete }) {
+  const [form, setForm] = useState({
+    numero_oc:   oc.numero_oc||'',
+    proveedor:   oc.proveedor||'',
+    cuit_proveedor: oc.cuit_proveedor||'',
+    categoria_id: oc.categoria_id||'',
+    descripcion: oc.descripcion||'',
+    moneda:      oc.moneda||'ARS',
+    monto_sin_iva: oc.monto_sin_iva||'',
+    iva_pct:     oc.iva_pct??'21',
+    fx:          oc.fx||'',
+    fecha_emision: oc.fecha_emision||'',
+    estado:      oc.estado||'activa',
+  })
+  const [saving, setSaving] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); setSaving(true)
+    try { await onSave(form) } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="overlay open" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{width:560}}>
+        <h3>Editar OC — {oc.numero_oc}</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="two-col">
+            <div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} /></div>
+            <div className="form-row"><label>Proveedor *</label><input required value={form.proveedor} onChange={e=>setForm(f=>({...f,proveedor:e.target.value}))} /></div>
+          </div>
+          <div className="form-row"><label>CUIT Proveedor</label><input value={form.cuit_proveedor} onChange={e=>setForm(f=>({...f,cuit_proveedor:e.target.value}))} placeholder="ej. 30-70733736-9" /></div>
+          <div className="two-col">
+            <div className="form-row"><label>Categoría *</label><select required value={form.categoria_id} onChange={e=>setForm(f=>({...f,categoria_id:e.target.value}))}><option value="">Seleccionar...</option>{categorias.map(c=><option key={c.id} value={c.id}>{c.nombre}</option>)}</select></div>
+            <div className="form-row"><label>Estado</label><select value={form.estado} onChange={e=>setForm(f=>({...f,estado:e.target.value}))}><option value="pendiente_aprobacion">Pend. aprobación</option><option value="aprobada">Aprobada</option><option value="activa">Activa</option><option value="completada">Completada</option><option value="cancelada">Cancelada</option></select></div>
+          </div>
+          <div className="form-row"><label>Descripción</label><input value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} /></div>
+          <div className="two-col">
+            <div className="form-row"><label>Moneda</label><select value={form.moneda} onChange={e=>setForm(f=>({...f,moneda:e.target.value}))}><option value="ARS">ARS</option><option value="USD">USD</option></select></div>
+            <div className="form-row"><label>FX {form.moneda==='USD'?'(no aplica)':'*'}</label><input type="number" value={form.fx} onChange={e=>setForm(f=>({...f,fx:e.target.value}))} disabled={form.moneda==='USD'} required={form.moneda==='ARS'} placeholder="ej. 1425" /></div>
+          </div>
+          <div className="two-col">
+            <div className="form-row"><label>Monto s/IVA ({form.moneda}) *</label><input required type="number" step="0.01" value={form.monto_sin_iva} onChange={e=>setForm(f=>({...f,monto_sin_iva:e.target.value}))} /></div>
+            <div className="form-row"><label>IVA %</label><select value={form.iva_pct} onChange={e=>setForm(f=>({...f,iva_pct:e.target.value}))}><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div>
+          </div>
+          <div className="form-row"><label>Fecha emisión</label><input type="date" value={form.fecha_emision} onChange={e=>setForm(f=>({...f,fecha_emision:e.target.value}))} /></div>
+          <div className="modal-footer" style={{justifyContent:'space-between'}}>
+            <button type="button" onClick={onDelete} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}>🗑 Eliminar OC</button>
+            <div style={{display:'flex',gap:8}}>
+              <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
+              <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 // ─── SUB TAB OC (Facturables) ─────────────────────────────────────────────────
 function SubTabOC({ proyecto }) {
   const [ocs, setOcs]               = useState([])
@@ -1353,6 +1412,7 @@ function SubTabOC({ proyecto }) {
   const [error, setError]           = useState(null)
   const [modal, setModal]           = useState(false)
   const [modalAlocar, setModalAlocar] = useState(null)
+  const [modalEditar, setModalEditar] = useState(null)
   const [saving, setSaving]         = useState(false)
   const [form, setForm] = useState({numero_oc:'',proveedor:'',cuit_proveedor:'',categoria_id:'',descripcion:'',moneda:'ARS',monto_sin_iva:'',iva_pct:'21',fx:'',fecha_emision:'',estado:'pendiente_aprobacion'})
 
@@ -1386,6 +1446,25 @@ function SubTabOC({ proyecto }) {
     } finally { setSaving(false) }
   }
 
+  const handleUpdate = async (data) => {
+    const { error } = await supabase.from('cpt_oc').update({
+      numero_oc:data.numero_oc, proveedor:data.proveedor,
+      cuit_proveedor:data.cuit_proveedor||null, categoria_id:data.categoria_id,
+      descripcion:data.descripcion, moneda:data.moneda,
+      monto_sin_iva:Number(data.monto_sin_iva), iva_pct:Number(data.iva_pct),
+      fx:Number(data.fx)||null, fecha_emision:data.fecha_emision||null, estado:data.estado,
+    }).eq('id', modalEditar.id)
+    if (error) { alert(error.message); return }
+    setModalEditar(null); await load()
+  }
+
+  const handleDeleteOC = async () => {
+    if (!confirm(`¿Eliminar OC ${modalEditar.numero_oc}? Esta acción no se puede deshacer.`)) return
+    const { error } = await supabase.from('cpt_oc').delete().eq('id', modalEditar.id)
+    if (error) { alert(error.message); return }
+    setModalEditar(null); await load()
+  }
+
   const CHIP={pendiente_aprobacion:'c-pend',aprobada:'c-apr',activa:'c-ok',completada:'c-ok',cancelada:'c-no'}
   if (loading) return <div className="state-msg">Cargando OCs...</div>
   if (error)   return <div className="alert alert-err">Error: {error}</div>
@@ -1417,7 +1496,12 @@ function SubTabOC({ proyecto }) {
                   </td>
                   <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(o.fecha_emision)}</td>
                   <td><span className={`chip ${CHIP[o.estado]||'c-no'}`}>{safeReplace(o.estado)}</span></td>
-                  <td><button className="btn" style={{padding:'4px 10px',fontSize:10}} onClick={()=>setModalAlocar(o)}>Alocar →</button></td>
+                  <td>
+                    <div style={{display:'flex',gap:4}}>
+                      <button className="btn-ghost" style={{padding:'3px 8px',fontSize:10}} onClick={()=>setModalEditar(o)}>Editar</button>
+                      <button className="btn" style={{padding:'4px 10px',fontSize:10}} onClick={()=>setModalAlocar(o)}>Alocar →</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1429,6 +1513,7 @@ function SubTabOC({ proyecto }) {
         </div>
       </div>
       {modalAlocar&&<ModalAlocar oc={modalAlocar} proyecto={proyecto} onClose={()=>{setModalAlocar(null);load()}} />}
+      {modalEditar&&<ModalEditarOC oc={modalEditar} categorias={categorias} onClose={()=>setModalEditar(null)} onSave={handleUpdate} onDelete={handleDeleteOC} />}
       {modal&&<ModalNuevaOC categorias={categorias} form={form} setForm={setForm} saving={saving} onClose={()=>setModal(false)} onSubmit={handleSave} />}
     </>
   )
@@ -1442,6 +1527,7 @@ function SubTabFacturasCompra({ proyecto }) {
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const [modal, setModal]       = useState(false)
+  const [modalEditar, setModalEditar] = useState(null)
   const [saving, setSaving]     = useState(false)
   const [formC, setFormC] = useState({numero_factura:'',oc_id:'',proveedor:'',cuit_proveedor:'',moneda:'ARS',monto_sin_iva:'',iva_pct:'21',fx:'',fecha_factura:'',fecha_vto_pago:''})
 
@@ -1476,6 +1562,29 @@ function SubTabFacturasCompra({ proyecto }) {
     } finally { setSaving(false) }
   }
 
+  const handleUpdateFC = async (e) => {
+    e.preventDefault(); setSaving(true)
+    try {
+      const f = modalEditar
+      const { error } = await supabase.from('cpt_facturas_compra').update({
+        numero_factura:f.numero_factura, oc_id:f.oc_id||null,
+        proveedor:f.proveedor, cuit_proveedor:f.cuit_proveedor||null,
+        moneda:f.moneda, monto_sin_iva:Number(f.monto_sin_iva),
+        iva_pct:Number(f.iva_pct), fx:Number(f.fx)||null,
+        fecha_factura:f.fecha_factura||null, fecha_vto_pago:f.fecha_vto_pago||null,
+      }).eq('id', f.id)
+      if (error) { alert(error.message); return }
+      setModalEditar(null); await load()
+    } finally { setSaving(false) }
+  }
+
+  const handleDeleteFC = async (id) => {
+    if (!confirm('¿Eliminar esta factura?')) return
+    const { error } = await supabase.from('cpt_facturas_compra').delete().eq('id', id)
+    if (error) { alert(error.message); return }
+    await load()
+  }
+
   const ocSel = formC.oc_id?ocSaldos[formC.oc_id]:null
   const CHIPFC={pagada:'c-ok',pendiente_pago:'c-apr',vencida:'c-pend'}
   if (loading) return <div className="state-msg">Cargando facturas...</div>
@@ -1487,9 +1596,9 @@ function SubTabFacturasCompra({ proyecto }) {
         <div className="card-hdr"><span className="card-title">Facturas de Compra — Facturables</span><button className="btn" onClick={()=>setModal(true)}>+ Registrar</button></div>
         <div className="tbl-wrap">
           <table>
-            <thead><tr><th>#Factura</th><th>Proveedor</th><th>OC</th><th>USD s/IVA</th><th>USD c/IVA</th><th>Fecha</th><th>Vto. Pago</th><th>Estado</th></tr></thead>
+            <thead><tr><th>#Factura</th><th>Proveedor</th><th>OC</th><th>USD s/IVA</th><th>USD c/IVA</th><th>Fecha</th><th>Vto. Pago</th><th>Estado</th><th></th></tr></thead>
             <tbody>
-              {fcompra.length===0&&<tr><td colSpan={8} className="state-msg">Sin facturas</td></tr>}
+              {fcompra.length===0&&<tr><td colSpan={9} className="state-msg">Sin facturas</td></tr>}
               {fcompra.map(f=>(
                 <tr key={f.id}>
                   <td className="mono">{f.numero_factura}</td>
@@ -1500,6 +1609,12 @@ function SubTabFacturasCompra({ proyecto }) {
                   <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(f.fecha_factura)}</td>
                   <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(f.fecha_vto_pago)}</td>
                   <td><span className={`chip ${CHIPFC[f.estado]||'c-no'}`}>{safeReplace(f.estado)}</span></td>
+                  <td>
+                    <div style={{display:'flex',gap:4}}>
+                      <button className="btn-ghost" style={{padding:'3px 8px',fontSize:10}} onClick={()=>setModalEditar({...f,monto_sin_iva:f.monto_sin_iva||'',iva_pct:f.iva_pct??'21',fx:f.fx||''})}>Editar</button>
+                      <button className="btn-ghost" style={{padding:'3px 8px',fontSize:10,color:'var(--r)'}} onClick={()=>handleDeleteFC(f.id)}>✕</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1519,6 +1634,29 @@ function SubTabFacturasCompra({ proyecto }) {
               <div className="two-col"><div className="form-row"><label>Monto s/IVA *</label><input required type="number" step="0.01" value={formC.monto_sin_iva} onChange={e=>setFormC(f=>({...f,monto_sin_iva:e.target.value}))} /></div><div className="form-row"><label>IVA %</label><select value={formC.iva_pct} onChange={e=>setFormC(f=>({...f,iva_pct:e.target.value}))}><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div></div>
               <div className="two-col"><div className="form-row"><label>Fecha *</label><input required type="date" value={formC.fecha_factura} onChange={e=>setFormC(f=>({...f,fecha_factura:e.target.value}))} /></div><div className="form-row"><label>Vto. pago</label><input type="date" value={formC.fecha_vto_pago} onChange={e=>setFormC(f=>({...f,fecha_vto_pago:e.target.value}))} /></div></div>
               <div className="modal-footer"><button type="button" className="btn-ghost" onClick={()=>setModal(false)}>Cancelar</button><button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Registrar'}</button></div>
+            </form>
+          </div>
+        </div>
+      )}
+      {modalEditar&&(
+        <div className="overlay open" onClick={e=>e.target===e.currentTarget&&setModalEditar(null)}>
+          <div className="modal">
+            <h3>Editar Factura de Compra</h3>
+            <form onSubmit={handleUpdateFC}>
+              <div className="two-col"><div className="form-row"><label>Número *</label><input required value={modalEditar.numero_factura||''} onChange={e=>setModalEditar(f=>({...f,numero_factura:e.target.value}))} /></div><div className="form-row"><label>OC vinculada</label><select value={modalEditar.oc_id||''} onChange={e=>setModalEditar(f=>({...f,oc_id:e.target.value}))}><option value="">Sin OC</option>{ocs.map(o=><option key={o.id} value={o.id}>{o.numero_oc} – {o.proveedor}</option>)}</select></div></div>
+              <div className="form-row"><label>Proveedor *</label><input required value={modalEditar.proveedor||''} onChange={e=>setModalEditar(f=>({...f,proveedor:e.target.value}))} /></div>
+              <div className="form-row"><label>CUIT</label><input value={modalEditar.cuit_proveedor||''} onChange={e=>setModalEditar(f=>({...f,cuit_proveedor:e.target.value}))} placeholder="ej. 30-70733736-9" /></div>
+              <div className="two-col"><div className="form-row"><label>Moneda</label><select value={modalEditar.moneda||'ARS'} onChange={e=>setModalEditar(f=>({...f,moneda:e.target.value}))}><option value="ARS">ARS</option><option value="USD">USD</option></select></div><div className="form-row"><label>FX {modalEditar.moneda==='USD'?'(no aplica)':'*'}</label><input type="number" value={modalEditar.fx||''} onChange={e=>setModalEditar(f=>({...f,fx:e.target.value}))} disabled={modalEditar.moneda==='USD'} required={modalEditar.moneda==='ARS'} placeholder="ej. 1428" /></div></div>
+              <div className="two-col"><div className="form-row"><label>Monto s/IVA *</label><input required type="number" step="0.01" value={modalEditar.monto_sin_iva||''} onChange={e=>setModalEditar(f=>({...f,monto_sin_iva:e.target.value}))} /></div><div className="form-row"><label>IVA %</label><select value={modalEditar.iva_pct??'21'} onChange={e=>setModalEditar(f=>({...f,iva_pct:e.target.value}))}><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div></div>
+              <div className="two-col"><div className="form-row"><label>Fecha</label><input type="date" value={modalEditar.fecha_factura||''} onChange={e=>setModalEditar(f=>({...f,fecha_factura:e.target.value}))} /></div><div className="form-row"><label>Vto. pago</label><input type="date" value={modalEditar.fecha_vto_pago||''} onChange={e=>setModalEditar(f=>({...f,fecha_vto_pago:e.target.value}))} /></div></div>
+              <div className="two-col"><div className="form-row"><label>Estado</label><select value={modalEditar.estado||'pendiente_pago'} onChange={e=>setModalEditar(f=>({...f,estado:e.target.value}))}><option value="pendiente_pago">Pendiente pago</option><option value="pagada">Pagada</option><option value="vencida">Vencida</option></select></div></div>
+              <div className="modal-footer" style={{justifyContent:'space-between'}}>
+                <button type="button" onClick={()=>handleDeleteFC(modalEditar.id)} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}>🗑 Eliminar</button>
+                <div style={{display:'flex',gap:8}}>
+                  <button type="button" className="btn-ghost" onClick={()=>setModalEditar(null)}>Cancelar</button>
+                  <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
+                </div>
+              </div>
             </form>
           </div>
         </div>
@@ -1548,6 +1686,7 @@ function SubTabFacturasVenta({ proyecto }) {
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
   const [modal, setModal]     = useState(false)
+  const [modalEditar, setModalEditar] = useState(null)
   const [saving, setSaving]   = useState(false)
   const [formV, setFormV] = useState({numero_factura:'',concepto:'',monto_usd:'',cuit_cliente:'',fecha_emision:'',fecha_vto_cobro:'',notas:''})
 
@@ -1575,6 +1714,29 @@ function SubTabFacturasVenta({ proyecto }) {
     } finally { setSaving(false) }
   }
 
+  const handleUpdateFV = async (e) => {
+    e.preventDefault(); setSaving(true)
+    try {
+      const f = modalEditar
+      const { error } = await supabase.from('cpt_facturas_venta').update({
+        numero_factura:f.numero_factura||null, concepto:f.concepto,
+        monto_usd:Number(f.monto_usd), cuit_cliente:f.cuit_cliente||null,
+        fecha_emision:f.fecha_emision||null, fecha_vto_cobro:f.fecha_vto_cobro||null,
+        notas:f.notas||null, monto_cobrado:Number(f.monto_cobrado||0),
+        estado:f.estado||'emitida',
+      }).eq('id', f.id)
+      if (error) { alert(error.message); return }
+      setModalEditar(null); await load()
+    } finally { setSaving(false) }
+  }
+
+  const handleDeleteFV = async (id) => {
+    if (!confirm('¿Eliminar esta factura al cliente?')) return
+    const { error } = await supabase.from('cpt_facturas_venta').delete().eq('id', id)
+    if (error) { alert(error.message); return }
+    await load()
+  }
+
   const CHIPFV={cobrada:'c-ok',cobro_parcial:'c-pend',emitida:'c-apr',no_emitida:'c-no'}
   const totalFacVta  = fventa.reduce((s,f)=>s+(f.monto_usd||0),0)
   const totalCobrado = fventa.reduce((s,f)=>s+(f.monto_cobrado||0),0)
@@ -1588,9 +1750,9 @@ function SubTabFacturasVenta({ proyecto }) {
         <div className="card-hdr"><span className="card-title">Facturas al Cliente</span><button className="btn" onClick={()=>setModal(true)}>+ Nueva</button></div>
         <div className="tbl-wrap">
           <table>
-            <thead><tr><th>#Factura</th><th>Concepto</th><th>Monto USD</th><th>Emitida</th><th>Vto. Cobro</th><th>Cobrado</th><th>Pendiente</th><th>Estado</th></tr></thead>
+            <thead><tr><th>#Factura</th><th>Concepto</th><th>Monto USD</th><th>Emitida</th><th>Vto. Cobro</th><th>Cobrado</th><th>Pendiente</th><th>Estado</th><th></th></tr></thead>
             <tbody>
-              {fventa.length===0&&<tr><td colSpan={8} className="state-msg">Sin facturas al cliente</td></tr>}
+              {fventa.length===0&&<tr><td colSpan={9} className="state-msg">Sin facturas al cliente</td></tr>}
               {fventa.map(f=>(
                 <tr key={f.id}>
                   <td className="mono">{f.numero_factura||'—'}</td>
@@ -1601,6 +1763,12 @@ function SubTabFacturasVenta({ proyecto }) {
                   <td className={`mono ${(f.monto_cobrado||0)>0?'cg':''}`}>{fmtUSD(f.monto_cobrado)}</td>
                   <td className={`mono ${(f.monto_usd-(f.monto_cobrado||0))>0?'cw':''}`}>{fmtUSD(f.monto_usd-(f.monto_cobrado||0))}</td>
                   <td><span className={`chip ${CHIPFV[f.estado]||'c-no'}`}>{safeReplace(f.estado)}</span></td>
+                  <td>
+                    <div style={{display:'flex',gap:4}}>
+                      <button className="btn-ghost" style={{padding:'3px 8px',fontSize:10}} onClick={()=>setModalEditar({...f,monto_usd:f.monto_usd||'',monto_cobrado:f.monto_cobrado||0})}>Editar</button>
+                      <button className="btn-ghost" style={{padding:'3px 8px',fontSize:10,color:'var(--r)'}} onClick={()=>handleDeleteFV(f.id)}>✕</button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -1624,6 +1792,32 @@ function SubTabFacturasVenta({ proyecto }) {
               <div className="two-col"><div className="form-row"><label>Fecha emisión</label><input type="date" value={formV.fecha_emision} onChange={e=>setFormV(f=>({...f,fecha_emision:e.target.value}))} /></div><div className="form-row"><label>Vto. cobro</label><input type="date" value={formV.fecha_vto_cobro} onChange={e=>setFormV(f=>({...f,fecha_vto_cobro:e.target.value}))} /></div></div>
               <div className="form-row"><label>Notas</label><textarea value={formV.notas} onChange={e=>setFormV(f=>({...f,notas:e.target.value}))} /></div>
               <div className="modal-footer"><button type="button" className="btn-ghost" onClick={()=>setModal(false)}>Cancelar</button><button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar'}</button></div>
+            </form>
+          </div>
+        </div>
+      )}
+      {modalEditar&&(
+        <div className="overlay open" onClick={e=>e.target===e.currentTarget&&setModalEditar(null)}>
+          <div className="modal">
+            <h3>Editar Factura al Cliente</h3>
+            <form onSubmit={handleUpdateFV}>
+              <div className="form-row"><label>Número</label><input value={modalEditar.numero_factura||''} onChange={e=>setModalEditar(f=>({...f,numero_factura:e.target.value}))} /></div>
+              <div className="form-row"><label>Concepto *</label><input required value={modalEditar.concepto||''} onChange={e=>setModalEditar(f=>({...f,concepto:e.target.value}))} /></div>
+              <div className="form-row"><label>CUIT Cliente</label><input value={modalEditar.cuit_cliente||''} onChange={e=>setModalEditar(f=>({...f,cuit_cliente:e.target.value}))} /></div>
+              <div className="two-col">
+                <div className="form-row"><label>Monto USD *</label><input required type="number" step="0.01" value={modalEditar.monto_usd||''} onChange={e=>setModalEditar(f=>({...f,monto_usd:e.target.value}))} /></div>
+                <div className="form-row"><label>Cobrado USD</label><input type="number" step="0.01" value={modalEditar.monto_cobrado||''} onChange={e=>setModalEditar(f=>({...f,monto_cobrado:e.target.value}))} placeholder="0" /></div>
+              </div>
+              <div className="two-col"><div className="form-row"><label>Fecha emisión</label><input type="date" value={modalEditar.fecha_emision||''} onChange={e=>setModalEditar(f=>({...f,fecha_emision:e.target.value}))} /></div><div className="form-row"><label>Vto. cobro</label><input type="date" value={modalEditar.fecha_vto_cobro||''} onChange={e=>setModalEditar(f=>({...f,fecha_vto_cobro:e.target.value}))} /></div></div>
+              <div className="form-row"><label>Estado</label><select value={modalEditar.estado||'emitida'} onChange={e=>setModalEditar(f=>({...f,estado:e.target.value}))}><option value="no_emitida">No emitida</option><option value="emitida">Emitida</option><option value="cobro_parcial">Cobro parcial</option><option value="cobrada">Cobrada</option></select></div>
+              <div className="form-row"><label>Notas</label><textarea value={modalEditar.notas||''} onChange={e=>setModalEditar(f=>({...f,notas:e.target.value}))} /></div>
+              <div className="modal-footer" style={{justifyContent:'space-between'}}>
+                <button type="button" onClick={()=>handleDeleteFV(modalEditar.id)} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}>🗑 Eliminar</button>
+                <div style={{display:'flex',gap:8}}>
+                  <button type="button" className="btn-ghost" onClick={()=>setModalEditar(null)}>Cancelar</button>
+                  <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
+                </div>
+              </div>
             </form>
           </div>
         </div>
