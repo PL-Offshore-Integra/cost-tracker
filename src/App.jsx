@@ -2180,6 +2180,7 @@ function SubTabOCNoFact({ proyecto }) {
   const [error, setError]       = useState(null)
   const [modal, setModal]       = useState(false)
   const [modalFact, setModalFact] = useState(false)
+  const [modalEditar, setModalEditar] = useState(null)
   const [saving, setSaving]     = useState(false)
   const emptyOC = {numero_oc:'',proveedor:'',cuit_proveedor:'',zona_id:'',descripcion:'',moneda:'ARS',monto_sin_iva:'',iva_pct:'21',fx:'',fecha_emision:'',estado:'activa'}
   const [form, setForm]   = useState(emptyOC)
@@ -2256,9 +2257,9 @@ function SubTabOCNoFact({ proyecto }) {
             <div className="card-hdr"><span className="card-title">OC — No Facturables</span><button className="btn" onClick={()=>setModal(true)}>+ Nueva OC</button></div>
             <div className="tbl-wrap">
               <table>
-                <thead><tr><th>#OC</th><th>Proveedor</th><th>Descripción</th><th>Zona</th><th>Mon.</th><th>s/IVA orig.</th><th>c/IVA orig.</th><th>FX</th><th>USD s/IVA</th><th>USD c/IVA</th><th>Estado</th></tr></thead>
+                <thead><tr><th>#OC</th><th>Proveedor</th><th>Descripción</th><th>Zona</th><th>Mon.</th><th>s/IVA orig.</th><th>c/IVA orig.</th><th>FX</th><th>USD s/IVA</th><th>USD c/IVA</th><th>Estado</th><th></th></tr></thead>
                 <tbody>
-                  {ocs.length===0&&<tr><td colSpan={11} className="state-msg">Sin OC</td></tr>}
+                  {ocs.length===0&&<tr><td colSpan={12} className="state-msg">Sin OC</td></tr>}
                   {ocs.map(o=>(
                     <tr key={o.id}>
                       <td className="mono cb">{o.numero_oc}</td>
@@ -2272,6 +2273,7 @@ function SubTabOCNoFact({ proyecto }) {
                       <td className="mono">{fmtUSD(o.monto_usd_sin_iva)}</td>
                       <td className="mono cg">{fmtUSD(o.monto_usd_con_iva)}</td>
                       <td><span className={`chip ${o.estado==='activa'?'c-ok':'c-pend'}`}>{safeReplace(o.estado)}</span></td>
+                      <td><button className="btn-ghost" style={{padding:'3px 8px',fontSize:10}} onClick={()=>setModalEditar(o)}>Editar</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -2301,6 +2303,29 @@ function SubTabOCNoFact({ proyecto }) {
                 </form>
               </div>
             </div>
+          )}
+          {modalEditar&&(
+            <ModalEditarOCNF
+              oc={modalEditar} zonas={zonas}
+              onClose={()=>setModalEditar(null)}
+              onSave={async (data)=>{
+                const {error}=await supabase.from('cpt_oc_nf').update({
+                  numero_oc:data.numero_oc, proveedor:data.proveedor,
+                  cuit_proveedor:data.cuit_proveedor||null, zona_id:data.zona_id||null,
+                  descripcion:data.descripcion, moneda:data.moneda,
+                  monto_sin_iva:Number(data.monto_sin_iva), iva_pct:Number(data.iva_pct),
+                  fx:Number(data.fx)||null, fecha_emision:data.fecha_emision||null, estado:data.estado,
+                }).eq('id',modalEditar.id)
+                if (error) { alert(error.message); return }
+                setModalEditar(null); await load()
+              }}
+              onDelete={async()=>{
+                if (!confirm(`¿Eliminar OC ${modalEditar.numero_oc}?`)) return
+                const {error}=await supabase.from('cpt_oc_nf').delete().eq('id',modalEditar.id)
+                if (error) { alert(error.message); return }
+                setModalEditar(null); await load()
+              }}
+            />
           )}
         </>
       )}
