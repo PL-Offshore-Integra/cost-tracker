@@ -1586,7 +1586,15 @@ function SubTabFacturasCompra({ proyecto }) {
   }
 
   const ocSel = formC.oc_id?ocSaldos[formC.oc_id]:null
+  // ── Alarma duplicado: facturas ya cargadas para la misma OC ───────────────
+  const facturasParaOCSel = formC.oc_id
+    ? fcompra.filter(f => f.oc_id === formC.oc_id)
+    : []
   const CHIPFC={pagada:'c-ok',pendiente_pago:'c-apr',vencida:'c-pend'}
+  // ── Mapa de OCs con más de 1 factura (para badge en tabla) ────────────────
+  const ocCountMap = {}
+  for (const f of fcompra) { if (f.oc_id) ocCountMap[f.oc_id] = (ocCountMap[f.oc_id]||0)+1 }
+
   if (loading) return <div className="state-msg">Cargando facturas...</div>
   if (error)   return <div className="alert alert-err">Error: {error}</div>
 
@@ -1600,10 +1608,19 @@ function SubTabFacturasCompra({ proyecto }) {
             <tbody>
               {fcompra.length===0&&<tr><td colSpan={9} className="state-msg">Sin facturas</td></tr>}
               {fcompra.map(f=>(
-                <tr key={f.id}>
+                <tr key={f.id} style={f.oc_id&&ocCountMap[f.oc_id]>1?{background:'#FFFBEB'}:{}}>
                   <td className="mono">{f.numero_factura}</td>
                   <td style={{fontWeight:500}}>{f.proveedor}</td>
-                  <td className="mono cb">{f.cpt_oc?.numero_oc}</td>
+                  <td>
+                    <div style={{display:'flex',alignItems:'center',gap:5}}>
+                      <span className="mono cb">{f.cpt_oc?.numero_oc}</span>
+                      {f.oc_id&&ocCountMap[f.oc_id]>1&&(
+                        <span title={`Esta OC tiene ${ocCountMap[f.oc_id]} facturas cargadas`} style={{display:'inline-flex',alignItems:'center',background:'#FEF3C7',border:'1px solid #FDE68A',color:'#92400E',borderRadius:8,padding:'1px 6px',fontSize:10,fontWeight:700,cursor:'default',whiteSpace:'nowrap'}}>
+                          ⚠ ×{ocCountMap[f.oc_id]}
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td className="mono">{fmtUSD(f.monto_usd_sin_iva)}</td>
                   <td className="mono">{fmtUSD(f.monto_usd_con_iva)}</td>
                   <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(f.fecha_factura)}</td>
@@ -1628,6 +1645,22 @@ function SubTabFacturasCompra({ proyecto }) {
             <form onSubmit={handleSave}>
               <div className="two-col"><div className="form-row"><label>Número *</label><input required value={formC.numero_factura} onChange={e=>setFormC(f=>({...f,numero_factura:e.target.value}))} /></div><div className="form-row"><label>OC vinculada *</label><select required value={formC.oc_id} onChange={e=>setFormC(f=>({...f,oc_id:e.target.value}))}><option value="">Seleccionar...</option>{ocs.map(o=><option key={o.id} value={o.id}>{o.numero_oc} – {o.proveedor}</option>)}</select></div></div>
               {ocSel&&<div className="alert alert-info" style={{marginBottom:12}}>Saldo disponible: <strong>{fmtUSD(ocSel.saldo_usd)} USD</strong></div>}
+              {facturasParaOCSel.length>0&&(
+                <div className="alert alert-warn" style={{marginBottom:12}}>
+                  <strong>⚠ Atención — OC ya facturada {facturasParaOCSel.length} vez{facturasParaOCSel.length>1?'es':''}</strong>
+                  <div style={{marginTop:6,display:'flex',flexDirection:'column',gap:3}}>
+                    {facturasParaOCSel.map(f=>(
+                      <div key={f.id} style={{fontSize:11,display:'flex',gap:8,alignItems:'center'}}>
+                        <span className="mono" style={{fontWeight:700}}>#{f.numero_factura}</span>
+                        <span style={{color:'#92400E'}}>{f.proveedor}</span>
+                        <span style={{color:'#B45309'}}>{fmtDate(f.fecha_factura)}</span>
+                        <span className="mono" style={{marginLeft:'auto'}}>{fmtUSD(f.monto_usd_con_iva)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{marginTop:6,fontSize:11,color:'#92400E'}}>Verificá que no sea un duplicado antes de registrar.</div>
+                </div>
+              )}
               <div className="form-row"><label>Proveedor *</label><input required value={formC.proveedor} onChange={e=>setFormC(f=>({...f,proveedor:e.target.value}))} /></div>
               <div className="form-row"><label>CUIT</label><input value={formC.cuit_proveedor||''} onChange={e=>setFormC(f=>({...f,cuit_proveedor:e.target.value}))} placeholder="ej. 30-70733736-9" /></div>
               <div className="two-col"><div className="form-row"><label>Moneda</label><select value={formC.moneda} onChange={e=>setFormC(f=>({...f,moneda:e.target.value}))}><option value="ARS">ARS</option><option value="USD">USD</option></select></div><div className="form-row"><label>FX {formC.moneda==='USD'?'(no aplica)':'*'}</label><input type="number" value={formC.fx} onChange={e=>setFormC(f=>({...f,fx:e.target.value}))} disabled={formC.moneda==='USD'} required={formC.moneda==='ARS'} placeholder="ej. 1428" /></div></div>
@@ -2205,6 +2238,11 @@ function SubTabOCNoFact({ proyecto }) {
     return o.moneda==='ARS'?`$${Number(val).toLocaleString('es-AR')}`:fmtUSD(val)
   }
 
+  // ── Alarma duplicado NF: facturas ya cargadas para la misma OC NF ─────────
+  const facturasParaOCNFSel = formF.oc_nf_id
+    ? facturas.filter(f => f.oc_nf_id === formF.oc_nf_id)
+    : []
+
   return (
     <>
       <div className="sub-tabs">
@@ -2276,14 +2314,26 @@ function SubTabOCNoFact({ proyecto }) {
                 <thead><tr><th>#Factura</th><th>Proveedor</th><th>OC vinculada</th><th>Mon.</th><th>s/IVA orig.</th><th>c/IVA orig.</th><th>FX</th><th>USD s/IVA</th><th>USD c/IVA</th><th>Fecha</th><th>Vto. Pago</th></tr></thead>
                 <tbody>
                   {facturas.length===0&&<tr><td colSpan={11} className="state-msg">Sin facturas</td></tr>}
-                  {facturas.map(f=>{
+                  {(()=>{
+                    const nfCountMap = {}
+                    for (const f of facturas) { if (f.oc_nf_id) nfCountMap[f.oc_nf_id]=(nfCountMap[f.oc_nf_id]||0)+1 }
+                    return facturas.map(f=>{
                     const sinIvaUSD=f.moneda==='ARS'&&f.fx?f.monto_sin_iva/f.fx:f.monto_sin_iva
                     const conIvaUSD=f.moneda==='ARS'&&f.fx?(f.monto_sin_iva*(1+(f.iva_pct||0)/100))/f.fx:(f.monto_sin_iva*(1+(f.iva_pct||0)/100))
                     return (
-                      <tr key={f.id}>
+                      <tr key={f.id} style={f.oc_nf_id&&nfCountMap[f.oc_nf_id]>1?{background:'#FFFBEB'}:{}}>
                         <td className="mono">{f.numero_factura}</td>
                         <td style={{fontWeight:500}}>{f.proveedor}</td>
-                        <td className="mono cb">{f.cpt_oc_nf?.numero_oc||'—'}</td>
+                        <td>
+                          <div style={{display:'flex',alignItems:'center',gap:5}}>
+                            <span className="mono cb">{f.cpt_oc_nf?.numero_oc||'—'}</span>
+                            {f.oc_nf_id&&nfCountMap[f.oc_nf_id]>1&&(
+                              <span title={`Esta OC tiene ${nfCountMap[f.oc_nf_id]} facturas cargadas`} style={{display:'inline-flex',alignItems:'center',background:'#FEF3C7',border:'1px solid #FDE68A',color:'#92400E',borderRadius:8,padding:'1px 6px',fontSize:10,fontWeight:700,cursor:'default',whiteSpace:'nowrap'}}>
+                                ⚠ ×{nfCountMap[f.oc_nf_id]}
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="mono">{f.moneda}</td>
                         <td className="mono">{f.moneda==='ARS'?`$${Number(f.monto_sin_iva).toLocaleString('es-AR')}`:fmtUSD(f.monto_sin_iva)}</td>
                         <td className="mono">{f.moneda==='ARS'?`$${Number(f.monto_sin_iva*(1+(f.iva_pct||0)/100)).toLocaleString('es-AR')}`:fmtUSD(f.monto_sin_iva*(1+(f.iva_pct||0)/100))}</td>
@@ -2294,7 +2344,7 @@ function SubTabOCNoFact({ proyecto }) {
                         <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(f.fecha_vto_pago)}</td>
                       </tr>
                     )
-                  })}
+                  })})()
                 </tbody>
               </table>
             </div>
@@ -2305,6 +2355,26 @@ function SubTabOCNoFact({ proyecto }) {
                 <h3>Registrar Factura — No Facturable</h3>
                 <form onSubmit={handleSaveFact}>
                   <div className="two-col"><div className="form-row"><label>Número *</label><input required value={formF.numero_factura} onChange={e=>setFormF(f=>({...f,numero_factura:e.target.value}))} /></div><div className="form-row"><label>OC vinculada</label><select value={formF.oc_nf_id} onChange={e=>{const oc=ocs.find(o=>o.id===e.target.value);setFormF(f=>({...f,oc_nf_id:e.target.value,proveedor:oc?.proveedor||f.proveedor}))}}><option value="">Sin OC</option>{ocs.map(o=><option key={o.id} value={o.id}>{o.numero_oc} – {o.proveedor}</option>)}</select></div></div>
+                  {facturasParaOCNFSel.length>0&&(
+                    <div className="alert alert-warn" style={{marginBottom:12}}>
+                      <strong>⚠ Atención — OC ya facturada {facturasParaOCNFSel.length} vez{facturasParaOCNFSel.length>1?'es':''}</strong>
+                      <div style={{marginTop:6,display:'flex',flexDirection:'column',gap:3}}>
+                        {facturasParaOCNFSel.map(f=>{
+                          const sinIvaUSD=f.moneda==='ARS'&&f.fx?f.monto_sin_iva/f.fx:f.monto_sin_iva
+                          const conIvaUSD=f.moneda==='ARS'&&f.fx?(f.monto_sin_iva*(1+(f.iva_pct||0)/100))/f.fx:(f.monto_sin_iva*(1+(f.iva_pct||0)/100))
+                          return (
+                            <div key={f.id} style={{fontSize:11,display:'flex',gap:8,alignItems:'center'}}>
+                              <span className="mono" style={{fontWeight:700}}>#{f.numero_factura}</span>
+                              <span style={{color:'#92400E'}}>{f.proveedor}</span>
+                              <span style={{color:'#B45309'}}>{fmtDate(f.fecha_factura)}</span>
+                              <span className="mono" style={{marginLeft:'auto'}}>{fmtUSD(conIvaUSD)}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div style={{marginTop:6,fontSize:11,color:'#92400E'}}>Verificá que no sea un duplicado antes de registrar.</div>
+                    </div>
+                  )}
                   <div className="form-row"><label>Proveedor *</label><input required value={formF.proveedor} onChange={e=>setFormF(f=>({...f,proveedor:e.target.value}))} /></div>
                   <div className="form-row"><label>CUIT</label><input value={formF.cuit_proveedor} onChange={e=>setFormF(f=>({...f,cuit_proveedor:e.target.value}))} /></div>
                   <div className="two-col"><div className="form-row"><label>Moneda</label><select value={formF.moneda} onChange={e=>setFormF(f=>({...f,moneda:e.target.value}))}><option value="ARS">ARS</option><option value="USD">USD</option></select></div><div className="form-row"><label>FX {formF.moneda==='USD'?'(no aplica)':'*'}</label><input type="number" value={formF.fx} onChange={e=>setFormF(f=>({...f,fx:e.target.value}))} disabled={formF.moneda==='USD'} required={formF.moneda==='ARS'} placeholder="ej. 1425" /></div></div>
