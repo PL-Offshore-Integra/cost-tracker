@@ -530,6 +530,7 @@ function TabOverview({ proyectoIds }) {
   const [pivotCol, setPivotCol]       = useState('tipo')        // tipo | categoria | mes
   const [pivotMoneda, setPivotMoneda] = useState('USD_sin') // USD_sin | USD_con | ARS_sin | ARS_con
   const [pivotFiltroTipo, setPivotFiltroTipo] = useState('todos') // todos | facturable | nofacturable | operacion
+  const [pivotSortDir, setPivotSortDir] = useState('desc') // desc | asc | alpha
 
   const load = useCallback(async () => {
     if (!proyectoIds.length) return
@@ -710,11 +711,10 @@ function TabOverview({ proyectoIds }) {
   const getCol  = (r) => r[pivotCol]  || '—'
 
   // Construir pivot con valores con signo
-  const filaKeys = [...new Set(filtered.map(getFila))].sort()
-  const colKeys  = [...new Set(filtered.map(getCol))].sort()
-  const pivot    = {}
-  const totFila  = {}
-  const totCol   = {}
+  const colKeys   = [...new Set(filtered.map(getCol))].sort()
+  const pivot     = {}
+  const totFila   = {}
+  const totCol    = {}
   const costoFila = {}; const ingresoFila = {}
   let grandTotal = 0, grandCosto = 0, grandIngreso = 0
 
@@ -728,6 +728,13 @@ function TabOverview({ proyectoIds }) {
     grandTotal += v
     if (r.esIngreso) { ingresoFila[f] = (ingresoFila[f]||0)+abs; grandIngreso+=abs }
     else             { costoFila[f]   = (costoFila[f]  ||0)+abs; grandCosto  +=abs }
+  })
+
+  const filaKeys = [...new Set(filtered.map(getFila))].sort((a,b)=>{
+    if (pivotSortDir==='alpha') return a.localeCompare(b)
+    const totA = Math.abs(totFila[a]||0)
+    const totB = Math.abs(totFila[b]||0)
+    return pivotSortDir==='desc' ? totB-totA : totA-totB
   })
 
   const esARS = pivotMoneda.startsWith('ARS')
@@ -957,6 +964,14 @@ function TabOverview({ proyectoIds }) {
                 <option value="USD_con">USD c/IVA</option>
                 <option value="ARS_sin">ARS s/IVA</option>
                 <option value="ARS_con">ARS c/IVA</option>
+              </select>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:4}}>
+              <span style={{fontSize:10,color:'var(--muted)',fontWeight:700,textTransform:'uppercase'}}>Orden</span>
+              <select value={pivotSortDir} onChange={e=>setPivotSortDir(e.target.value)} style={{fontSize:11,padding:'3px 7px',width:'auto'}}>
+                <option value="desc">Mayor → menor</option>
+                <option value="asc">Menor → mayor</option>
+                <option value="alpha">A → Z</option>
               </select>
             </div>
           </div>
