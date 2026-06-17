@@ -97,6 +97,56 @@ const api = {
     if (error) throw error
     return data || []
   },
+
+  // ─── Multi-proyecto (para Overview/Pivot) ─────────────────────────────────
+  getItemsMulti: async (ids) => {
+    if (!ids.length) return []
+    const [{ data, error }, { data: alocs }] = await Promise.all([
+      supabase.from('cpt_items_proyecto').select('*').in('proyecto_id',ids).order('orden'),
+      supabase.from('cpt_alocaciones').select('item_id,categoria,monto_usd').in('proyecto_id',ids)
+    ])
+    if (error) throw error
+    const realMap = {}
+    for (const a of alocs||[]) {
+      if (!realMap[a.item_id]) realMap[a.item_id] = {}
+      realMap[a.item_id][a.categoria] = (realMap[a.item_id][a.categoria]||0)+(a.monto_usd||0)
+    }
+    return (data||[]).map(item => ({ ...item, costos_real: realMap[item.id]||{} }))
+  },
+  getFacturasVentaMulti: async (ids) => {
+    if (!ids.length) return []
+    const { data, error } = await supabase.from('cpt_facturas_venta').select('*').in('proyecto_id',ids).order('fecha_emision',{ascending:false})
+    if (error) throw error
+    return data || []
+  },
+  getAlocacionesResumenMulti: async (ids) => {
+    if (!ids.length) return []
+    const { data, error } = await supabase.from('cpt_alocaciones').select('planificacion,monto_usd,categoria,cpt_items_proyecto(descripcion),cpt_oc(numero_oc,proveedor)').in('proyecto_id',ids)
+    if (error) throw error
+    return data || []
+  },
+  getOpCostosMulti: async (ids) => {
+    if (!ids.length) return []
+    const { data, error } = await supabase.from('cpt_op_costos').select('*,cpt_categorias(nombre,color)').in('proyecto_id',ids).order('fecha',{ascending:false})
+    if (error) throw error
+    return data || []
+  },
+  getOpIngresosMulti: async (ids) => {
+    if (!ids.length) return []
+    const { data, error } = await supabase.from('cpt_op_ingresos').select('*,cpt_categorias(nombre,color)').in('proyecto_id',ids).order('fecha',{ascending:false})
+    if (error) throw error
+    return data || []
+  },
+  getOCsNFMulti: async (ids) => {
+    if (!ids.length) return []
+    const { data, error } = await supabase.from('cpt_oc_nf').select('*,cpt_zonas_trabajo(nombre)').in('proyecto_id',ids).order('numero_oc')
+    if (error) throw error
+    return (data||[]).map(o => {
+      const sinIvaUSD = o.moneda==='ARS'&&o.fx ? o.monto_sin_iva/o.fx : o.monto_sin_iva
+      const conIvaUSD = o.moneda==='ARS'&&o.fx ? (o.monto_sin_iva*(1+(o.iva_pct||0)/100))/o.fx : (o.monto_sin_iva*(1+(o.iva_pct||0)/100))
+      return { ...o, monto_usd_sin_iva: sinIvaUSD, monto_usd_con_iva: conIvaUSD }
+    })
+  },
   // ─── No Facturables ───────────────────────────────────────────────────────
   getOCsNF: async (proyectoId) => {
     const { data, error } = await supabase.from('cpt_oc_nf').select('*,cpt_zonas_trabajo(nombre)').eq('proyecto_id',proyectoId).order('numero_oc')
@@ -191,6 +241,22 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 .hdr-btn-gold:hover{background:var(--gold2)}
 .hdr-email{font-size:10px;font-family:var(--mono);color:rgba(255,255,255,.35)}
 
+
+/* ── Multi-project selector ── */
+.proj-sel-wrap{position:relative;display:inline-block}
+.proj-sel-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;min-width:220px;max-width:300px;font-family:var(--sans);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;white-space:nowrap;overflow:hidden}
+.proj-sel-btn:hover{border-color:rgba(255,255,255,.35)}
+.proj-sel-btn.active{border-color:var(--gold);background:rgba(184,148,42,.15)}
+.proj-sel-dropdown{position:absolute;top:calc(100% + 4px);right:0;background:#1a2740;border:1px solid rgba(184,148,42,.3);border-radius:8px;min-width:300px;max-width:400px;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}
+.proj-sel-header{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between}
+.proj-sel-header span{font-size:10px;color:rgba(255,255,255,.4);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px}
+.proj-sel-header button{background:transparent;border:none;color:var(--gold);font-size:10px;font-family:var(--sans);font-weight:700;cursor:pointer;padding:2px 6px}
+.proj-sel-item{padding:8px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .1s}
+.proj-sel-item:hover{background:rgba(255,255,255,.06)}
+.proj-sel-item input[type=checkbox]{accent-color:var(--gold);width:14px;height:14px;cursor:pointer;flex-shrink:0}
+.proj-sel-item label{font-size:12px;color:#fff;font-family:var(--sans);cursor:pointer;line-height:1.3}
+.proj-sel-item label span{display:block;font-size:10px;color:rgba(255,255,255,.4);font-family:var(--mono)}
+.proj-sel-badge{background:var(--gold);color:var(--navy);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:800;flex-shrink:0}
 /* ── Tabs ── */
 .tabs-main{display:flex;background:var(--navy);border-bottom:1px solid rgba(184,148,42,.15);padding:0 28px;overflow-x:auto;flex-shrink:0}
 .tabs-sub{display:flex;background:#F8FAFC;border-bottom:1px solid var(--border);padding:0 16px;overflow-x:auto;flex-shrink:0;gap:6px;align-items:center;min-height:40px}
@@ -444,7 +510,7 @@ const CATS = ['material','mano_obra','instalacion','consumibles','alquiler','mob
 const CATS_LABEL = {material:'Material',mano_obra:'Mano de Obra',instalacion:'Instalación',consumibles:'Consumibles',alquiler:'Alquiler',mob_demob:'Mob/Demob'}
 
 // ─── TAB OVERVIEW ─────────────────────────────────────────────────────────────
-function TabOverview({ proyecto }) {
+function TabOverview({ proyectoIds }) {
   const [items, setItems]           = useState([])
   const [fventa, setFventa]         = useState([])
   const [alocs, setAlocs]           = useState([])
@@ -466,21 +532,22 @@ function TabOverview({ proyecto }) {
   const [pivotFiltroTipo, setPivotFiltroTipo] = useState('todos') // todos | facturable | nofacturable | operacion
 
   const load = useCallback(async () => {
+    if (!proyectoIds.length) return
     setLoading(true); setError(null)
     try {
       const [its, fv, al, opc, opi, onf] = await Promise.all([
-        api.getItems(proyecto.id),
-        api.getFacturasVenta(proyecto.id),
-        api.getAlocacionesResumen(proyecto.id),
-        api.getOpCostos(proyecto.id),
-        api.getOpIngresos(proyecto.id),
-        api.getOCsNF(proyecto.id),
+        api.getItemsMulti(proyectoIds),
+        api.getFacturasVentaMulti(proyectoIds),
+        api.getAlocacionesResumenMulti(proyectoIds),
+        api.getOpCostosMulti(proyectoIds),
+        api.getOpIngresosMulti(proyectoIds),
+        api.getOCsNFMulti(proyectoIds),
       ])
       setItems(its); setFventa(fv); setAlocs(al)
       setOpCostos(opc); setOpIngresos(opi); setOcsNF(onf)
     } catch(e) { setError(e.message) }
     finally { setLoading(false) }
-  }, [proyecto.id])
+  }, [proyectoIds.join(',')])
 
   useEffect(() => { load() }, [load])
 
@@ -2977,16 +3044,81 @@ function TabCategorias() {
   )
 }
 
+// ─── MULTI-PROJECT SELECTOR ───────────────────────────────────────────────────
+function ProyectoMultiSelector({ proyectos, selectedIds, onChange }) {
+  const [open, setOpen] = useState(false)
+
+  const toggle = (id) => {
+    if (selectedIds.includes(id)) {
+      onChange(selectedIds.filter(x => x !== id))
+    } else {
+      onChange([...selectedIds, id])
+    }
+  }
+
+  const selAll  = () => onChange(proyectos.map(p => p.id))
+  const selNone = () => onChange([])
+
+  const label = selectedIds.length === 0
+    ? 'Seleccionar proyectos...'
+    : selectedIds.length === 1
+      ? proyectos.find(p => p.id === selectedIds[0])?.nombre || '1 proyecto'
+      : `${selectedIds.length} proyectos seleccionados`
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => {
+      if (!e.target.closest('.proj-sel-wrap')) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  return (
+    <div className="proj-sel-wrap">
+      <button className={`proj-sel-btn${open?' active':''}`} onClick={()=>setOpen(v=>!v)}>
+        <span style={{overflow:'hidden',textOverflow:'ellipsis'}}>{label}</span>
+        {selectedIds.length > 0 && <span className="proj-sel-badge">{selectedIds.length}</span>}
+        <span style={{fontSize:9,opacity:.6,flexShrink:0}}>{open?'▲':'▼'}</span>
+      </button>
+      {open && (
+        <div className="proj-sel-dropdown">
+          <div className="proj-sel-header">
+            <span>{proyectos.length} proyectos</span>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={selAll}>Todos</button>
+              <button onClick={selNone}>Ninguno</button>
+            </div>
+          </div>
+          {proyectos.map(p => (
+            <div key={p.id} className="proj-sel-item" onClick={()=>toggle(p.id)}>
+              <input type="checkbox" checked={selectedIds.includes(p.id)} onChange={()=>toggle(p.id)} onClick={e=>e.stopPropagation()} />
+              <label onClick={e=>e.preventDefault()}>
+                {p.nombre}
+                <span>{p.cliente}</span>
+              </label>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── COST TRACKER APP ─────────────────────────────────────────────────────────
 function CostTrackerApp({ session }) {
-  const [mainTab, setMainTab]       = useState('overview')
-  const [subTab, setSubTab]         = useState(null)
-  const [proyectos, setProyectos]   = useState([])
-  const [proyectoId, setProyectoId] = useState(() => localStorage.getItem('cpt_proyecto_id')||'')
-  const [modalNuevo, setModalNuevo] = useState(false)
-  const [savingP, setSavingP]       = useState(false)
-  const [errorP, setErrorP]         = useState('')
-  const [formP, setFormP]           = useState({nombre:'',cliente:'',descripcion:'',fecha_inicio:'',fecha_fin_est:''})
+  const [mainTab, setMainTab]         = useState('overview')
+  const [subTab, setSubTab]           = useState(null)
+  const [proyectos, setProyectos]     = useState([])
+  // Multi-select: array de IDs seleccionados
+  const [selectedIds, setSelectedIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('cpt_proyecto_ids')||'[]') } catch { return [] }
+  })
+  const [modalNuevo, setModalNuevo]   = useState(false)
+  const [savingP, setSavingP]         = useState(false)
+  const [errorP, setErrorP]           = useState('')
+  const [formP, setFormP]             = useState({nombre:'',cliente:'',descripcion:'',fecha_inicio:'',fecha_fin_est:''})
 
   const SUB_TABS = {
     facturables:   [{id:'presupuesto',label:'Presupuesto vs Real'},{id:'costos',label:'OC y Facturas'},{id:'ingresos',label:'Ingresos'}],
@@ -2998,19 +3130,25 @@ function CostTrackerApp({ session }) {
     try {
       const data = await api.getProyectos()
       setProyectos(data)
-      const saved = localStorage.getItem('cpt_proyecto_id')
-      if (!saved&&data.length===1) { setProyectoId(data[0].id); localStorage.setItem('cpt_proyecto_id',data[0].id) }
+      // Si no hay nada seleccionado y hay un solo proyecto, auto-seleccionarlo
+      const saved = JSON.parse(localStorage.getItem('cpt_proyecto_ids')||'[]')
+      if (!saved.length && data.length === 1) {
+        setSelectedIds([data[0].id])
+        localStorage.setItem('cpt_proyecto_ids', JSON.stringify([data[0].id]))
+      }
     } catch(e) { console.error('Error cargando proyectos:',e.message) }
   }, [])
 
   useEffect(() => { loadProyectos() }, [loadProyectos])
 
-  const proyecto = proyectos.find(p=>p.id===proyectoId)||null
-
-  const selProyecto = (id) => {
-    setProyectoId(id); localStorage.setItem('cpt_proyecto_id',id)
+  const handleSelectionChange = (ids) => {
+    setSelectedIds(ids)
+    localStorage.setItem('cpt_proyecto_ids', JSON.stringify(ids))
     setMainTab('overview'); setSubTab(null)
   }
+
+  // Proyecto "activo" para tabs de escritura (el primero seleccionado)
+  const proyecto = proyectos.find(p => p.id === selectedIds[0]) || null
 
   const selectMainTab = (id) => {
     setMainTab(id)
@@ -3026,7 +3164,8 @@ function CostTrackerApp({ session }) {
         .select('id').single()
       if (error) { setErrorP('No se pudo crear: '+error.message); return }
       setModalNuevo(false); setFormP({nombre:'',cliente:'',descripcion:'',fecha_inicio:'',fecha_fin_est:''})
-      await loadProyectos(); selProyecto(data.id)
+      await loadProyectos()
+      handleSelectionChange([data.id])
     } catch(e) { setErrorP('Error de conexión: '+e.message) }
     finally { setSavingP(false) }
   }
@@ -3040,8 +3179,12 @@ function CostTrackerApp({ session }) {
     {id:'categorias',    label:'Categorías'},
   ]
 
-  const currentSubs    = SUB_TABS[mainTab]||null
-  const activeSubTab   = currentSubs?(subTab||currentSubs[0].id):null
+  const currentSubs  = SUB_TABS[mainTab]||null
+  const activeSubTab = currentSubs?(subTab||currentSubs[0].id):null
+
+  // Tabs de escritura requieren exactamente 1 proyecto seleccionado
+  const needsSingle = ['facturables','nofacturables','operacion','cashflow'].includes(mainTab)
+  const canRender   = selectedIds.length > 0 && (!needsSingle || selectedIds.length === 1)
 
   return (
     <>
@@ -3057,10 +3200,11 @@ function CostTrackerApp({ session }) {
             </div>
           </div>
           <div className="hdr-right">
-            <select className="hdr-sel" value={proyectoId} onChange={e=>selProyecto(e.target.value)}>
-              <option value="" disabled>Seleccionar proyecto...</option>
-              {proyectos.map(p=><option key={p.id} value={p.id}>{p.nombre}</option>)}
-            </select>
+            <ProyectoMultiSelector
+              proyectos={proyectos}
+              selectedIds={selectedIds}
+              onChange={handleSelectionChange}
+            />
             <button className="hdr-btn-gold" onClick={()=>setModalNuevo(true)}>+ Proyecto</button>
             <span className="hdr-email">{session?.user?.email}</span>
             <button className="hdr-btn" onClick={()=>window.location.href=PORTAL_URL}>← Portal</button>
@@ -3083,24 +3227,29 @@ function CostTrackerApp({ session }) {
         )}
 
         <div className="main">
-          {!proyecto
+          {selectedIds.length === 0
             ? <div className="state-msg" style={{marginTop:60}}>
-                <p style={{fontSize:15,fontWeight:700,color:'var(--navy)',marginBottom:8}}>Seleccioná un proyecto para comenzar</p>
-                <p>o creá uno nuevo con el botón <strong>+ Proyecto</strong> arriba a la derecha</p>
+                <p style={{fontSize:15,fontWeight:700,color:'var(--navy)',marginBottom:8}}>Seleccioná uno o más proyectos para comenzar</p>
+                <p>Usá el selector arriba a la derecha. Podés combinar varios proyectos para ver el consolidado.</p>
               </div>
-            : <>
-                {mainTab==='overview'                                          && <TabOverview       proyecto={proyecto} />}
-                {mainTab==='facturables' && activeSubTab==='presupuesto'       && <TabPresupuesto    proyecto={proyecto} />}
-                {mainTab==='facturables' && activeSubTab==='costos'            && <TabCostos         proyecto={proyecto} />}
-                {mainTab==='facturables' && activeSubTab==='ingresos'          && <TabIngresos       proyecto={proyecto} />}
-                {mainTab==='nofacturables' && activeSubTab==='preparacion'     && <SubTabPrepBarco   proyecto={proyecto} />}
-                {mainTab==='nofacturables' && activeSubTab==='oc_nofact'       && <SubTabOCNoFact    proyecto={proyecto} />}
-                {mainTab==='operacion' && activeSubTab==='op_costos'           && <SubTabOpCostos    proyecto={proyecto} />}
-                {mainTab==='operacion' && activeSubTab==='op_ingresos'         && <SubTabOpIngresos  proyecto={proyecto} />}
-                {mainTab==='operacion' && activeSubTab==='op_presupuesto'      && <SubTabOpPresupuesto proyecto={proyecto} />}
-                {mainTab==='cashflow'                                          && <TabCashflow       proyecto={proyecto} />}
-                {mainTab==='categorias'                                        && <TabCategorias />}
-              </>
+            : needsSingle && selectedIds.length > 1
+              ? <div className="state-msg" style={{marginTop:60}}>
+                  <p style={{fontSize:15,fontWeight:700,color:'var(--navy)',marginBottom:8}}>Esta sección requiere un solo proyecto</p>
+                  <p>Tenés <strong>{selectedIds.length} proyectos</strong> seleccionados. Dejá solo uno para acceder a {mainTab === 'facturables' ? 'Facturables' : mainTab === 'nofacturables' ? 'No Facturables' : mainTab === 'operacion' ? 'Operación' : 'Cashflow'}.</p>
+                </div>
+              : <>
+                  {mainTab==='overview'                                          && <TabOverview       proyectoIds={selectedIds} />}
+                  {mainTab==='facturables' && activeSubTab==='presupuesto'       && <TabPresupuesto    proyecto={proyecto} />}
+                  {mainTab==='facturables' && activeSubTab==='costos'            && <TabCostos         proyecto={proyecto} />}
+                  {mainTab==='facturables' && activeSubTab==='ingresos'          && <TabIngresos       proyecto={proyecto} />}
+                  {mainTab==='nofacturables' && activeSubTab==='preparacion'     && <SubTabPrepBarco   proyecto={proyecto} />}
+                  {mainTab==='nofacturables' && activeSubTab==='oc_nofact'       && <SubTabOCNoFact    proyecto={proyecto} />}
+                  {mainTab==='operacion' && activeSubTab==='op_costos'           && <SubTabOpCostos    proyecto={proyecto} />}
+                  {mainTab==='operacion' && activeSubTab==='op_ingresos'         && <SubTabOpIngresos  proyecto={proyecto} />}
+                  {mainTab==='operacion' && activeSubTab==='op_presupuesto'      && <SubTabOpPresupuesto proyecto={proyecto} />}
+                  {mainTab==='cashflow'                                          && <TabCashflow       proyecto={proyecto} />}
+                  {mainTab==='categorias'                                        && <TabCategorias />}
+                </>
           }
         </div>
 
