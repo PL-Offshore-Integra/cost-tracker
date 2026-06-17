@@ -2355,33 +2355,34 @@ function SubTabOCNoFact({ proyecto }) {
                     const nfCountMap = {}
                     for (const f of facturas) { if (f.oc_nf_id) nfCountMap[f.oc_nf_id]=(nfCountMap[f.oc_nf_id]||0)+1 }
                     return facturas.map(f=>{
-                    const sinIvaUSD=f.moneda==='ARS'&&f.fx?f.monto_sin_iva/f.fx:f.monto_sin_iva
-                    const conIvaUSD=f.moneda==='ARS'&&f.fx?(f.monto_sin_iva*(1+(f.iva_pct||0)/100))/f.fx:(f.monto_sin_iva*(1+(f.iva_pct||0)/100))
-                    return (
-                      <tr key={f.id} style={f.oc_nf_id&&nfCountMap[f.oc_nf_id]>1?{background:'#FFFBEB'}:{}}>
-                        <td className="mono">{f.numero_factura}</td>
-                        <td style={{fontWeight:500}}>{f.proveedor}</td>
-                        <td>
-                          <div style={{display:'flex',alignItems:'center',gap:5}}>
-                            <span className="mono cb">{f.cpt_oc_nf?.numero_oc||'—'}</span>
-                            {f.oc_nf_id&&nfCountMap[f.oc_nf_id]>1&&(
-                              <span title={`Esta OC tiene ${nfCountMap[f.oc_nf_id]} facturas cargadas`} style={{display:'inline-flex',alignItems:'center',background:'#FEF3C7',border:'1px solid #FDE68A',color:'#92400E',borderRadius:8,padding:'1px 6px',fontSize:10,fontWeight:700,cursor:'default',whiteSpace:'nowrap'}}>
-                                ⚠ ×{nfCountMap[f.oc_nf_id]}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="mono">{f.moneda}</td>
-                        <td className="mono">{f.moneda==='ARS'?`$${Number(f.monto_sin_iva).toLocaleString('es-AR')}`:fmtUSD(f.monto_sin_iva)}</td>
-                        <td className="mono">{f.moneda==='ARS'?`$${Number(f.monto_sin_iva*(1+(f.iva_pct||0)/100)).toLocaleString('es-AR')}`:fmtUSD(f.monto_sin_iva*(1+(f.iva_pct||0)/100))}</td>
-                        <td className="mono" style={{color:'var(--muted)'}}>{f.fx?Number(f.fx).toLocaleString('es-AR'):'—'}</td>
-                        <td className="mono">{fmtUSD(sinIvaUSD)}</td>
-                        <td className="mono cg">{fmtUSD(conIvaUSD)}</td>
-                        <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(f.fecha_factura)}</td>
-                        <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(f.fecha_vto_pago)}</td>
-                      </tr>
-                    )
-                  })})()
+                      const sinIvaUSD=f.moneda==='ARS'&&f.fx?f.monto_sin_iva/f.fx:f.monto_sin_iva
+                      const conIvaUSD=f.moneda==='ARS'&&f.fx?(f.monto_sin_iva*(1+(f.iva_pct||0)/100))/f.fx:(f.monto_sin_iva*(1+(f.iva_pct||0)/100))
+                      return (
+                        <tr key={f.id} style={f.oc_nf_id&&nfCountMap[f.oc_nf_id]>1?{background:'#FFFBEB'}:{}}>
+                          <td className="mono">{f.numero_factura}</td>
+                          <td style={{fontWeight:500}}>{f.proveedor}</td>
+                          <td>
+                            <div style={{display:'flex',alignItems:'center',gap:5}}>
+                              <span className="mono cb">{f.cpt_oc_nf?.numero_oc||'—'}</span>
+                              {f.oc_nf_id&&nfCountMap[f.oc_nf_id]>1&&(
+                                <span title={`Esta OC tiene ${nfCountMap[f.oc_nf_id]} facturas cargadas`} style={{display:'inline-flex',alignItems:'center',background:'#FEF3C7',border:'1px solid #FDE68A',color:'#92400E',borderRadius:8,padding:'1px 6px',fontSize:10,fontWeight:700,cursor:'default',whiteSpace:'nowrap'}}>
+                                  ⚠ ×{nfCountMap[f.oc_nf_id]}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="mono">{f.moneda}</td>
+                          <td className="mono">{f.moneda==='ARS'?`$${Number(f.monto_sin_iva).toLocaleString('es-AR')}`:fmtUSD(f.monto_sin_iva)}</td>
+                          <td className="mono">{f.moneda==='ARS'?`$${Number(f.monto_sin_iva*(1+(f.iva_pct||0)/100)).toLocaleString('es-AR')}`:fmtUSD(f.monto_sin_iva*(1+(f.iva_pct||0)/100))}</td>
+                          <td className="mono" style={{color:'var(--muted)'}}>{f.fx?Number(f.fx).toLocaleString('es-AR'):'—'}</td>
+                          <td className="mono">{fmtUSD(sinIvaUSD)}</td>
+                          <td className="mono cg">{fmtUSD(conIvaUSD)}</td>
+                          <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(f.fecha_factura)}</td>
+                          <td style={{fontSize:11,color:'var(--muted)'}}>{fmtDate(f.fecha_vto_pago)}</td>
+                        </tr>
+                      )
+                    })
+                  })()}
                 </tbody>
               </table>
             </div>
