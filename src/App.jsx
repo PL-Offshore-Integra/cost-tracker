@@ -2260,22 +2260,34 @@ function SubTabOCNoFact({ proyecto }) {
                 <thead><tr><th>#OC</th><th>Proveedor</th><th>Descripción</th><th>Zona</th><th>Mon.</th><th>s/IVA orig.</th><th>c/IVA orig.</th><th>FX</th><th>USD s/IVA</th><th>USD c/IVA</th><th>Estado</th><th></th></tr></thead>
                 <tbody>
                   {ocs.length===0&&<tr><td colSpan={12} className="state-msg">Sin OC</td></tr>}
-                  {ocs.map(o=>(
-                    <tr key={o.id}>
-                      <td className="mono cb">{o.numero_oc}</td>
-                      <td style={{fontWeight:600}}>{o.proveedor}</td>
-                      <td style={{color:'var(--muted)',fontSize:11}}>{o.descripcion}</td>
-                      <td>{o.cpt_zonas_trabajo?<span className="tag t-blue">{o.cpt_zonas_trabajo.nombre}</span>:<span className="tag t-red">Sin zona</span>}</td>
-                      <td className="mono">{o.moneda}</td>
-                      <td className="mono">{montoOrig(o)}</td>
-                      <td className="mono">{montoOrigCIVA(o)}</td>
-                      <td className="mono" style={{color:'var(--muted)'}}>{o.fx?Number(o.fx).toLocaleString('es-AR'):'—'}</td>
-                      <td className="mono">{fmtUSD(o.monto_usd_sin_iva)}</td>
-                      <td className="mono cg">{fmtUSD(o.monto_usd_con_iva)}</td>
-                      <td><span className={`chip ${o.estado==='activa'?'c-ok':'c-pend'}`}>{safeReplace(o.estado)}</span></td>
-                      <td><button className="btn-ghost" style={{padding:'3px 8px',fontSize:10}} onClick={()=>setModalEditar(o)}>Editar</button></td>
-                    </tr>
-                  ))}
+                  {(()=>{
+                    const ocCount={}
+                    ocs.forEach(o=>{ocCount[o.numero_oc]=(ocCount[o.numero_oc]||0)+1})
+                    return ocs.map(o=>{
+                      const isDup=ocCount[o.numero_oc]>1
+                      return (
+                        <tr key={o.id} style={isDup?{background:'#FFFBEB',outline:'1px solid #FDE68A'}:{}}>
+                          <td className="mono">
+                            <div style={{display:'flex',alignItems:'center',gap:5}}>
+                              <span className="cb">{o.numero_oc}</span>
+                              {isDup&&<span title="Número de OC duplicado" style={{display:'inline-flex',alignItems:'center',background:'#FEF3C7',border:'1px solid #FDE68A',color:'#92400E',borderRadius:8,padding:'1px 6px',fontSize:10,fontWeight:700,cursor:'default',whiteSpace:'nowrap'}}>⚠ DUP</span>}
+                            </div>
+                          </td>
+                          <td style={{fontWeight:600}}>{o.proveedor}</td>
+                          <td style={{color:'var(--muted)',fontSize:11}}>{o.descripcion}</td>
+                          <td>{o.cpt_zonas_trabajo?<span className="tag t-blue">{o.cpt_zonas_trabajo.nombre}</span>:<span className="tag t-red">Sin zona</span>}</td>
+                          <td className="mono">{o.moneda}</td>
+                          <td className="mono">{montoOrig(o)}</td>
+                          <td className="mono">{montoOrigCIVA(o)}</td>
+                          <td className="mono" style={{color:'var(--muted)'}}>{o.fx?Number(o.fx).toLocaleString('es-AR'):'—'}</td>
+                          <td className="mono">{fmtUSD(o.monto_usd_sin_iva)}</td>
+                          <td className="mono cg">{fmtUSD(o.monto_usd_con_iva)}</td>
+                          <td><span className={`chip ${o.estado==='activa'?'c-ok':'c-pend'}`}>{safeReplace(o.estado)}</span></td>
+                          <td><button className="btn-ghost" style={{padding:'3px 8px',fontSize:10}} onClick={()=>setModalEditar(o)}>Editar</button></td>
+                        </tr>
+                      )
+                    })
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -2289,7 +2301,7 @@ function SubTabOCNoFact({ proyecto }) {
               <div className="modal" style={{width:560}}>
                 <h3>Nueva OC — No Facturable</h3>
                 <form onSubmit={handleSaveOC}>
-                  <div className="two-col"><div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} /></div><div className="form-row"><label>Proveedor *</label><input required value={form.proveedor} onChange={e=>setForm(f=>({...f,proveedor:e.target.value}))} /></div></div>
+                  <div className="two-col"><div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} style={ocs.some(o=>o.numero_oc===form.numero_oc&&form.numero_oc!=='')?{borderColor:'#D97706',background:'#FFFBEB'}:{}} />{ocs.some(o=>o.numero_oc===form.numero_oc&&form.numero_oc!=='')&&(<div style={{fontSize:11,color:'#92400E',fontWeight:600,marginTop:4}}>⚠ Ya existe una OC con este número — verificá que no sea un duplicado.</div>)}</div><div className="form-row"><label>Proveedor *</label><input required value={form.proveedor} onChange={e=>setForm(f=>({...f,proveedor:e.target.value}))} /></div></div>
                   <div className="form-row"><label>CUIT</label><input value={form.cuit_proveedor} onChange={e=>setForm(f=>({...f,cuit_proveedor:e.target.value}))} /></div>
                   <div className="two-col"><div className="form-row"><label>Zona</label><select value={form.zona_id} onChange={e=>setForm(f=>({...f,zona_id:e.target.value}))}><option value="">Sin zona</option>{zonas.map(z=><option key={z.id} value={z.id}>{z.nombre}</option>)}</select></div><div className="form-row"><label>Estado</label><select value={form.estado} onChange={e=>setForm(f=>({...f,estado:e.target.value}))}><option value="pendiente_aprobacion">Pend. aprobación</option><option value="aprobada">Aprobada</option><option value="activa">Activa</option><option value="completada">Completada</option></select></div></div>
                   <div className="form-row"><label>Descripción</label><input value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} /></div>
