@@ -1423,9 +1423,7 @@ function TabPresupuesto({ proyecto }) {
     hx = sX2 + C2b[0]
     for (let i=0;i<6;i++){
       doc.text('Pres.', hx+C2b[i+1]*0.28, y+10, {align:'center'})
-      doc.text('Real', hx+C2b[i+1]*0.72, {align:'center'}, y+10)  // fallback
-      // jsPDF text signature: text(str, x, y, options)
-      doc.text('Real', hx+C2b[i+1]*0.72, y+10, {align:'center'})
+      doc.text('Real',  hx+C2b[i+1]*0.72, y+10, {align:'center'})
       hx += C2b[i+1]
     }
     y += 14
