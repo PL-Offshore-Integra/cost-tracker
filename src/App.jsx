@@ -1202,12 +1202,222 @@ function TabPresupuesto({ proyecto }) {
   const totalCosto     = totalCostoReal>0?totalCostoReal:totalCostoPres
   const cmTotal        = totalPrecio>0?((totalPrecio-totalCosto)/totalPrecio*100).toFixed(1):null
 
+  const exportarPDF = async () => {
+    if (!window.jspdf) {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script')
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+        s.onload = res; s.onerror = rej
+        document.head.appendChild(s)
+      })
+    }
+    const { jsPDF } = window.jspdf
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const W = 297, H = 210
+
+    const NAVY  = '#0B1629'
+    const BLUE  = '#235C96'
+    const GOLD  = '#B8942A'
+    const GOLD2 = '#D4AA3A'
+    const GREEN = '#059669'
+    const RED   = '#DC2626'
+    const AMBER = '#D97706'
+    const MUTED = '#6381A7'
+    const BORDER= '#D6E0ED'
+    const WHITE = '#FFFFFF'
+
+    const fU = (n) => n==null ? '—' : '$'+Number(n).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})
+    const fP = (v) => v==null ? '—' : Number(v).toFixed(1)+'%'
+    const cmColor  = (v) => v==null ? MUTED : v>=30 ? GREEN : v>=15 ? AMBER : RED
+    const dltColor = (v) => v==null ? MUTED : v>=0 ? GREEN : RED
+    const dltStr   = (v) => v==null ? '—' : (v>=0?'+':'')+Number(v).toFixed(1)+' pts'
+
+    // ── Header bar ──────────────────────────────────────────────────────────
+    doc.setFillColor(NAVY); doc.rect(0, 0, W, 18, 'F')
+    doc.setFillColor(GOLD); doc.rect(0, 18, W, 1.2, 'F')
+    doc.setTextColor(WHITE); doc.setFontSize(13); doc.setFont('helvetica','bold')
+    doc.text('FACTURABLES — PRESUPUESTO VS REAL', 10, 10)
+    doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(GOLD)
+    doc.text('Parana Logística  ·  Cost Project Tracker', 10, 15)
+    doc.setTextColor('#8ba8cc')
+    const fecha = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})
+    doc.setFontSize(7.5); doc.text(fecha, W-10, 10, {align:'right'})
+    doc.setFontSize(6.5)
+    doc.text('Proyecto: '+(proyecto?.nombre||'—')+'  ·  Cliente: '+(proyecto?.cliente||'—'), W-10, 15, {align:'right'})
+
+    // ── KPI row ─────────────────────────────────────────────────────────────
+    const totalCmPres = totalPrecio>0&&totalCostoPres>0 ? (totalPrecio-totalCostoPres)/totalPrecio*100 : null
+    const totalCmReal = totalPrecio>0&&totalCostoReal>0 ? (totalPrecio-totalCostoReal)/totalPrecio*100 : null
+    const totalDelta  = totalCmPres!=null&&totalCmReal!=null ? totalCmReal-totalCmPres : null
+
+    const kpis = [
+      {label:'Ingreso cotizado',     val:fU(totalPrecio),           sub:'Precio de venta al cliente', color:BLUE},
+      {label:'Costo presupuestado',  val:fU(totalCostoPres),        sub:'CM pres. '+fP(totalCmPres),  color:NAVY},
+      {label:'Costo real ejecutado', val:fU(totalCostoReal||null),  sub:'CM real '+fP(totalCmReal),   color:NAVY},
+      {label:'Variación CM',         val:dltStr(totalDelta),        sub:'Presup. → Real',             color:dltColor(totalDelta)},
+    ]
+    const kW = (W-20)/4
+    kpis.forEach((k,i)=>{
+      const x = 10 + i*kW
+      doc.setFillColor(i===3?'#F0FDF4':i===0?'#EFF6FF':'#F8FAFC')
+      doc.roundedRect(x, 22, kW-2, 22, 2, 2, 'F')
+      doc.setDrawColor(BORDER); doc.setLineWidth(0.3)
+      doc.roundedRect(x, 22, kW-2, 22, 2, 2, 'S')
+      doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor(MUTED)
+      doc.text(k.label.toUpperCase(), x+4, 28)
+      doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.setTextColor(k.color)
+      doc.text(k.val, x+4, 36)
+      doc.setFontSize(7); doc.setFont('helvetica','normal'); doc.setTextColor(MUTED)
+      doc.text(k.sub, x+4, 41)
+    })
+
+    // ── Section label ───────────────────────────────────────────────────────
+    doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(NAVY)
+    doc.text('DETALLE POR ÍTEM', 10, 51)
+    doc.setDrawColor(BORDER); doc.setLineWidth(0.4)
+    doc.line(10, 52.5, W-10, 52.5)
+
+    // ── Table ───────────────────────────────────────────────────────────────
+    // colWidths sum = W - 20 = 277mm
+    const COL = [75, 22, 22, 22, 18, 18, 18, 18]  // 213 → ajustar a 277
+    // recalcular: 75+22+22+22+18+18+18+18 = 213, falta 64 → agregar a descripción
+    const COL2 = [75+64, 22, 22, 22, 18, 18, 18, 18]  // = 277
+    const startX = 10
+    let y = 55
+
+    // Header
+    const headers = ['DESCRIPCIÓN','PRECIO','C.PRES.','C.REAL','VAR. $','CM PRES.','CM REAL','DELTA CM']
+    doc.setFillColor(NAVY)
+    doc.rect(startX, y, COL2.reduce((a,b)=>a+b), 8, 'F')
+    doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(WHITE)
+    let cx = startX
+    headers.forEach((h,i)=>{
+      const tx = i===0 ? cx+2 : cx+COL2[i]-2
+      doc.text(h, tx, y+5.2, {align: i===0?'left':'right'})
+      cx += COL2[i]
+    })
+    y += 8
+
+    // Rows
+    const ROW_H = 9
+    items.forEach((item, idx)=>{
+      const cpT   = CATS.reduce((s,cat)=>s+(item.costos?.[cat]?.pres?.usd||0),0)
+      const crT   = CATS.reduce((s,cat)=>s+(item.costos_real?.[cat]||0),0)
+      const price = item.precio_cliente||0
+      const cmp   = price>0&&cpT>0 ? (price-cpT)/price*100 : null
+      const cmr   = price>0&&crT>0 ? (price-crT)/price*100 : null
+      const dlt   = cmp!=null&&cmr!=null ? cmr-cmp : null
+      const varD  = (crT>0||cpT>0) ? crT-cpT : null
+      const varStr= varD==null ? '—' : (varD>=0?'+':'')+fU(Math.abs(varD)).replace('$','') + (varD>=0?' ↑':' ↓')
+      const varStrSimple = varD==null ? '—' : (varD>=0?'+':'')+fU(varD)
+
+      doc.setFillColor(idx%2===0?'#FFFFFF':'#F8FAFC')
+      doc.rect(startX, y, COL2.reduce((a,b)=>a+b), ROW_H, 'F')
+      doc.setDrawColor(BORDER); doc.setLineWidth(0.2)
+      doc.line(startX, y+ROW_H, startX+COL2.reduce((a,b)=>a+b), y+ROW_H)
+
+      // Descripción — truncar si excede
+      doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(NAVY)
+      const maxChars = Math.floor(COL2[0]/1.8)
+      const desc = (item.descripcion||'—').length > maxChars ? (item.descripcion||'—').substring(0,maxChars-1)+'…' : (item.descripcion||'—')
+      doc.text(desc, startX+2, y+5.8)
+
+      cx = startX + COL2[0]
+
+      // Precio
+      doc.setFont('helvetica','normal'); doc.setTextColor(BLUE)
+      doc.text(fU(price), cx+COL2[1]-2, y+5.8, {align:'right'})
+      cx += COL2[1]
+
+      // C.Pres (azul) y C.Real (verde) apilados
+      doc.setFontSize(6); doc.setTextColor(BLUE)
+      if (cpT>0) doc.text(fU(cpT), cx+COL2[2]-2, y+4, {align:'right'})
+      doc.setTextColor(GREEN)
+      if (crT>0) doc.text(fU(crT), cx+COL2[2]-2, y+8, {align:'right'})
+      if (!cpT&&!crT) { doc.setFontSize(7.5); doc.setTextColor(MUTED); doc.text('—', cx+COL2[2]-2, y+5.8, {align:'right'}) }
+      cx += COL2[2]
+
+      // C.Real (columna propia)
+      doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(crT>0?GREEN:MUTED)
+      doc.text(crT>0?fU(crT):'—', cx+COL2[3]-2, y+5.8, {align:'right'})
+      cx += COL2[3]
+
+      // Var $
+      doc.setFont('helvetica','normal')
+      doc.setTextColor(varD==null?MUTED:varD>0?RED:GREEN)
+      doc.text(varStrSimple, cx+COL2[4]-2, y+5.8, {align:'right'})
+      cx += COL2[4]
+
+      // CM Pres
+      doc.setFont('helvetica','bold'); doc.setTextColor(cmColor(cmp))
+      doc.text(fP(cmp), cx+COL2[5]-2, y+5.8, {align:'right'})
+      cx += COL2[5]
+
+      // CM Real
+      doc.setFont('helvetica','bold'); doc.setTextColor(cmColor(cmr))
+      doc.text(fP(cmr), cx+COL2[6]-2, y+5.8, {align:'right'})
+      cx += COL2[6]
+
+      // Delta CM
+      doc.setFont('helvetica','bold'); doc.setTextColor(dltColor(dlt))
+      doc.text(dltStr(dlt), cx+COL2[7]-2, y+5.8, {align:'right'})
+
+      // Separadores verticales
+      let vx = startX
+      COL2.forEach(c=>{ doc.setDrawColor(BORDER); doc.setLineWidth(0.15); doc.line(vx,y,vx,y+ROW_H); vx+=c })
+      doc.line(vx, y, vx, y+ROW_H)
+
+      y += ROW_H
+    })
+
+    // Fila totales
+    doc.setFillColor(NAVY)
+    doc.rect(startX, y, COL2.reduce((a,b)=>a+b), 9, 'F')
+    doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(WHITE)
+    doc.text('TOTAL PROYECTO', startX+2, y+5.8)
+    const varTot = totalCostoReal - totalCostoPres
+    const varTotStr = (varTot>=0?'+':'')+fU(varTot)
+    const totVals = [fU(totalPrecio), fU(totalCostoPres), fU(totalCostoReal||null), varTotStr, fP(totalCmPres), fP(totalCmReal), dltStr(totalDelta)]
+    cx = startX + COL2[0]
+    totVals.forEach((v,i)=>{ doc.setTextColor(i>=4?GOLD2:WHITE); doc.text(v, cx+COL2[i+1]-2, y+5.8, {align:'right'}); cx+=COL2[i+1] })
+    y += 9
+
+    // ── Leyenda ─────────────────────────────────────────────────────────────
+    y += 5
+    doc.setDrawColor(BORDER); doc.setLineWidth(0.3); doc.line(10, y, W-10, y); y+=4
+    const legend = [
+      ['Costo Presup.',  'Suma de los 6 rubros presupuestados por ítem (Material / M.Obra / Instalación / Consumibles / Alquiler / Mob-Demob).'],
+      ['Costo Real',     'Costos efectivamente alocados desde OCs (tabla cpt_alocaciones). Verde = ejecutado.'],
+      ['CM %',           '(Precio − Costo) / Precio × 100.   Verde ≥ 30%  |  Ámbar 15–29%  |  Rojo < 15%.'],
+      ['Delta CM',       'Diferencia en puntos porcentuales entre CM Real y CM Presupuestado. Positivo = mejora de margen.'],
+    ]
+    legend.forEach(([k,v])=>{
+      doc.setFontSize(6.5); doc.setFont('helvetica','bold'); doc.setTextColor(BLUE)
+      doc.text(k+':', 10, y)
+      doc.setFont('helvetica','normal'); doc.setTextColor(MUTED)
+      doc.text(v, 42, y)
+      y += 4.5
+    })
+
+    // ── Footer ───────────────────────────────────────────────────────────────
+    doc.setFillColor(NAVY); doc.rect(0, H-10, W, 10, 'F')
+    doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#4a6a96')
+    doc.text('Parana Logística S.A.  ·  Cost Project Tracker  ·  Módulo Facturables  ·  Confidencial', 10, H-4)
+    doc.text('Generado: '+fecha, W-10, H-4, {align:'right'})
+
+    const nombre = (proyecto?.nombre||'proyecto').replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_-]/g,'')
+    doc.save(`Facturables_${nombre}_${fecha.replace(/\//g,'-')}.pdf`)
+  }
+
   return (
     <>
       <div className="card">
         <div className="card-hdr">
           <span className="card-title">Ítems Cotizados — Presupuesto vs Costo Real</span>
-          <button className="btn" onClick={()=>setModalItem('new')}>+ Nuevo ítem</button>
+          <div style={{display:'flex',gap:8}}>
+            <button className="btn-ghost" style={{fontSize:11}} onClick={exportarPDF}>↓ Exportar PDF</button>
+            <button className="btn" onClick={()=>setModalItem('new')}>+ Nuevo ítem</button>
+          </div>
         </div>
         <div className="tbl-wrap">
           <table>
