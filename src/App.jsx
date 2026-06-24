@@ -495,7 +495,7 @@ function LoginPage() {
               <div className="login-fg"><label>Email</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} placeholder="usuario@paranalogistica.com.ar" autoFocus /></div>
               <div className="login-fg"><label>Contraseña</label><input type="password" value={pass} onChange={e=>setPass(e.target.value)} onKeyDown={e=>e.key==='Enter'&&handleLogin()} placeholder="••••••••" /></div>
               <button className="login-submit" onClick={handleLogin} disabled={loading||!email||!pass}>{loading?'Ingresando...':'Ingresar →'}</button>
-              <div className="login-foot">Parana Logística · Acceso restringido</div>
+              <div className="login-foot">PL Offshore · Acceso restringido</div>
               <div className="login-back" onClick={()=>window.location.href=PORTAL_URL}>← Volver al Portal</div>
             </div>
           </div>
@@ -1242,14 +1242,14 @@ function TabPresupuesto({ proyecto }) {
       doc.setTextColor(WHITE); doc.setFontSize(13); doc.setFont('helvetica','bold')
       doc.text(pageTitle, 10, 10)
       doc.setFontSize(7.5); doc.setFont('helvetica','normal'); doc.setTextColor(GOLD)
-      doc.text('Parana Logística  ·  Cost Project Tracker', 10, 15)
+      doc.text('PL Offshore  ·  Cost Project Tracker', 10, 15)
       doc.setTextColor('#8ba8cc')
       doc.setFontSize(7.5); doc.text(fecha, W-10, 10, {align:'right'})
       doc.setFontSize(6.5)
       doc.text('Proyecto: '+(proyecto?.nombre||'—')+'  ·  Cliente: '+(proyecto?.cliente||'—'), W-10, 15, {align:'right'})
       doc.setFillColor(NAVY); doc.rect(0, H-10, W, 10, 'F')
       doc.setFontSize(6.5); doc.setFont('helvetica','normal'); doc.setTextColor('#4a6a96')
-      doc.text('Parana Logística S.A.  ·  Cost Project Tracker  ·  Módulo Facturables  ·  Confidencial', 10, H-4)
+      doc.text('PL Offshore S.A.  ·  Cost Project Tracker  ·  Módulo Facturables  ·  Confidencial', 10, H-4)
       doc.text('Pág. '+pageNum+'  ·  Generado: '+fecha, W-10, H-4, {align:'right'})
     }
 
@@ -3538,7 +3538,7 @@ function CostTrackerApp({ session }) {
             <img src="/PL.png" alt="PL" className="hdr-logo" />
             <div className="hdr-divider" />
             <div>
-              <div className="hdr-name">Parana Logística</div>
+              <div className="hdr-name">PL Offshore</div>
               <div className="hdr-sub">Cost Project Tracker</div>
             </div>
           </div>
