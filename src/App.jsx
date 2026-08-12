@@ -267,13 +267,13 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 .proj-sel-badge{background:var(--gold);color:var(--navy);border-radius:4px;padding:1px 7px;font-size:11px;font-weight:800;flex-shrink:0}
 /*  Tabs  */
 .tabs-main{display:flex;gap:0;background:#FFFFFF;border-bottom:1px solid var(--border);padding:0 24px;overflow-x:auto;flex-shrink:0}
-.tabs-sub{display:flex;background:#F8FAFC;border-bottom:1px solid var(--border);padding:0 16px;overflow-x:auto;flex-shrink:0;gap:6px;align-items:center;min-height:40px}
-.tab{padding:13px 16px;font-size:12px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.4);border-bottom:2px solid transparent;white-space:nowrap;letter-spacing:.3px;transition:all .15s;user-select:none}
-.tab:hover{color:rgba(255,255,255,.8)}
-.tab.active{color:#fff;border-bottom-color:var(--gold)}
-.stab{padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--sans);transition:all .15s;white-space:nowrap}
+.tabs-sub{display:flex;background:var(--bg);border-bottom:1px solid var(--border);padding:0 16px;overflow-x:auto;flex-shrink:0;gap:6px;align-items:center;min-height:40px}
+.tab{padding:12px 16px;font-family:var(--sans);font-size:14px;font-weight:500;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;letter-spacing:0;transition:color 120ms cubic-bezier(.2,0,.38,.9),border-color 120ms cubic-bezier(.2,0,.38,.9);user-select:none}
+.tab:hover{color:var(--navy)}
+.tab.active{color:var(--navy);font-weight:600;border-bottom-color:var(--navy)}
+.stab{padding:6px 14px;font-size:13px;font-weight:500;cursor:pointer;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--sans);transition:all .15s;white-space:nowrap}
 .stab:hover{color:var(--text);border-color:var(--muted)}
-.stab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.stab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 .sub-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
 
 /*  Cards  */
