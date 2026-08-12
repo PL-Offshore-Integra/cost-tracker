@@ -233,20 +233,21 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
 /*  Header  */
-.header{background:var(--navy);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:58px;border-bottom:1px solid rgba(184,148,42,.2);flex-shrink:0;flex-wrap:wrap;gap:8px}
-.hdr-brand{display:flex;align-items:center;gap:12px}
-.hdr-logo{width:30px;height:30px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(255,255,255,.2)}
-.hdr-divider{width:1px;height:22px;background:rgba(184,148,42,.25)}
-.hdr-name{font-size:12px;font-weight:800;color:#fff;letter-spacing:2px;text-transform:uppercase}
-.hdr-sub{font-size:11px;color:var(--gold);letter-spacing:1px;font-family:var(--mono);text-transform:uppercase}
+.header{background:var(--navy);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px;border-bottom:0;flex-shrink:0;flex-wrap:wrap;gap:8px}
+.hdr-brand{display:flex;align-items:center;gap:16px}
+.hdr-iso{height:26px;width:auto;object-fit:contain;display:block;flex:0 0 auto}
+.hdr-logo{height:24px;width:auto;object-fit:contain;border-radius:0;border:0;flex:0 0 auto}
+.hdr-divider{width:1px;height:24px;background:rgba(255,255,255,.14)}
+.hdr-name{font-size:14px;font-weight:500;color:#fff;letter-spacing:0;text-transform:none}
+.hdr-sub{font-size:11px;font-weight:500;color:rgba(255,255,255,.72);letter-spacing:.06em;font-family:var(--mono);text-transform:uppercase;margin-top:2px}
 .hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .hdr-sel{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 10px;border-radius:4px;font-size:12px;font-weight:600;width:220px;font-family:var(--sans)}
 .hdr-sel option{background:#0B1629;color:#fff}
-.hdr-btn{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.55);font-family:var(--sans);font-size:11px;font-weight:600;padding:5px 12px;border-radius:4px;cursor:pointer;letter-spacing:.3px}
+.hdr-btn{background:transparent;border:1px solid rgba(255,255,255,.22);color:rgba(255,255,255,.86);font-family:var(--sans);font-size:11px;font-weight:600;padding:5px 12px;border-radius:4px;cursor:pointer;letter-spacing:.3px}
 .hdr-btn:hover{border-color:rgba(255,255,255,.35);color:#fff}
 .hdr-btn-gold{background:var(--gold);color:var(--navy);border:none;font-family:var(--sans);font-size:11px;font-weight:700;padding:5px 12px;border-radius:4px;cursor:pointer}
 .hdr-btn-gold:hover{background:var(--gold2)}
-.hdr-email{font-size:11px;font-family:var(--mono);color:rgba(255,255,255,.35)}
+.hdr-email{font-size:11px;font-family:var(--mono);letter-spacing:.06em;color:rgba(255,255,255,.72)}
 
 
 /*  Multi-project selector  */
@@ -265,7 +266,7 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 .proj-sel-item label span{display:block;font-size:11px;color:rgba(255,255,255,.4);font-family:var(--mono)}
 .proj-sel-badge{background:var(--gold);color:var(--navy);border-radius:4px;padding:1px 7px;font-size:11px;font-weight:800;flex-shrink:0}
 /*  Tabs  */
-.tabs-main{display:flex;background:var(--navy);border-bottom:1px solid rgba(184,148,42,.15);padding:0 28px;overflow-x:auto;flex-shrink:0}
+.tabs-main{display:flex;gap:0;background:#FFFFFF;border-bottom:1px solid var(--border);padding:0 24px;overflow-x:auto;flex-shrink:0}
 .tabs-sub{display:flex;background:#F8FAFC;border-bottom:1px solid var(--border);padding:0 16px;overflow-x:auto;flex-shrink:0;gap:6px;align-items:center;min-height:40px}
 .tab{padding:13px 16px;font-size:12px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.4);border-bottom:2px solid transparent;white-space:nowrap;letter-spacing:.3px;transition:all .15s;user-select:none}
 .tab:hover{color:rgba(255,255,255,.8)}
@@ -3542,8 +3543,9 @@ function CostTrackerApp({ session }) {
       <div className="app-wrap">
         <header className="header">
           <div className="hdr-brand">
-            <img src="/PL.png" alt="PL" className="hdr-logo" />
+            <img src="/integra-isotipo-white.svg" alt="INTEGRA" className="hdr-iso" />
             <div className="hdr-divider" />
+            <img src="/PL.png" alt="PL Offshore" className="hdr-logo" />
             <div>
               <div className="hdr-name">PL Offshore</div>
               <div className="hdr-sub">Cost Project Tracker</div>
