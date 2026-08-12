@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 
-const PORTAL_URL = 'https://erp-portal-fawn.vercel.app/'
+const PORTAL_URL = 'https://integra.ploffshore.com'
 
-// ─── API ──────────────────────────────────────────────────────────────────────
+//  API 
 const api = {
   getProyectos: async () => {
     const { data, error } = await supabase.from('cpt_proyectos').select('id,nombre,cliente').eq('estado','activo').order('created_at',{ascending:false})
@@ -98,7 +98,7 @@ const api = {
     return data || []
   },
 
-  // ─── Multi-proyecto (para Overview/Pivot) ─────────────────────────────────
+  //  Multi-proyecto (para Overview/Pivot) 
   getItemsMulti: async (ids) => {
     if (!ids.length) return []
     const [{ data, error }, { data: alocs }] = await Promise.all([
@@ -147,7 +147,7 @@ const api = {
       return { ...o, monto_usd_sin_iva: sinIvaUSD, monto_usd_con_iva: conIvaUSD }
     })
   },
-  // ─── No Facturables ───────────────────────────────────────────────────────
+  //  No Facturables 
   getOCsNF: async (proyectoId) => {
     const { data, error } = await supabase.from('cpt_oc_nf').select('*,cpt_zonas_trabajo(nombre)').eq('proyecto_id',proyectoId).order('numero_oc')
     if (error) throw error
@@ -167,7 +167,7 @@ const api = {
     if (error) throw error
     return data || []
   },
-  // ─── Operación ────────────────────────────────────────────────────────────
+  //  Operación 
   getOpCostos: async (proyectoId) => {
     const { data, error } = await supabase.from('cpt_op_costos').select('*,cpt_categorias(nombre,color)').eq('proyecto_id',proyectoId).order('fecha',{ascending:false})
     if (error) throw error
@@ -185,7 +185,7 @@ const api = {
   },
 }
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
+//  HELPERS 
 const fmtUSD = (n) => {
   if (n==null) return '—'
   const num = Number(n)
@@ -205,19 +205,26 @@ function getReminderStatus(fechaStr) {
   return { label:fmtDate(fechaStr), cls:'r-ok' }
 }
 
-// ─── CSS ──────────────────────────────────────────────────────────────────────
+//  CSS 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+/*  TOKENS · INTEGRA Brand Book v1.0 
+   Instancia PL Offshore: navy #002247 de estructura, amarillo #F8BC05 como
+   relleno de acción. Los nombres de variable son los que ya usaba esta app. */
 :root{
-  --navy:#0B1629;--gold:#B8942A;--gold2:#D4AA3A;--blue:#235C96;
-  --bg:#F0F4F8;--surface:#fff;--border:#D6E0ED;
-  --text:#0B1629;--muted:#6381A7;
-  --g:#059669;--r:#DC2626;--w:#D97706;
-  --sans:'Montserrat',sans-serif;--mono:'DM Mono',monospace;
+  --navy:#002247;--gold:#F8BC05;--gold2:#DCA704;--blue:#082F4E;
+  --bg:#FAFBFC;--surface:#FFFFFF;--border:#E4E8EC;
+  --text:#0F1419;--muted:#4A5560;
+  --g:#0E7A5F;--r:#B3261E;--w:#8F5A0B;
+  --sans:'IBM Plex Sans',sans-serif;--mono:'IBM Plex Mono',monospace;
 }
 
-/* ── Overflow guards obligatorios §11.7 ── */
+/* Foco en anillo del color de acción */
+*:focus-visible{outline:2px solid #002247;outline-offset:2px}
+
+/*  Overflow guards obligatorios §11.7  */
 body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13px;min-height:100vh;overflow-x:hidden}
 .app-wrap{display:flex;flex-direction:column;min-height:100vh;overflow-x:hidden}
 .main{flex:1;padding:24px 28px;overflow-x:hidden;overflow-y:auto}
@@ -225,68 +232,68 @@ body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
-/* ── Header ── */
+/*  Header  */
 .header{background:var(--navy);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:58px;border-bottom:1px solid rgba(184,148,42,.2);flex-shrink:0;flex-wrap:wrap;gap:8px}
 .hdr-brand{display:flex;align-items:center;gap:12px}
 .hdr-logo{width:30px;height:30px;border-radius:50%;object-fit:cover;border:1.5px solid rgba(255,255,255,.2)}
 .hdr-divider{width:1px;height:22px;background:rgba(184,148,42,.25)}
 .hdr-name{font-size:12px;font-weight:800;color:#fff;letter-spacing:2px;text-transform:uppercase}
-.hdr-sub{font-size:9px;color:var(--gold);letter-spacing:1px;font-family:var(--mono);text-transform:uppercase}
+.hdr-sub{font-size:11px;color:var(--gold);letter-spacing:1px;font-family:var(--mono);text-transform:uppercase}
 .hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.hdr-sel{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;width:220px;font-family:var(--sans)}
+.hdr-sel{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 10px;border-radius:4px;font-size:12px;font-weight:600;width:220px;font-family:var(--sans)}
 .hdr-sel option{background:#0B1629;color:#fff}
-.hdr-btn{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.55);font-family:var(--sans);font-size:10px;font-weight:600;padding:5px 12px;border-radius:6px;cursor:pointer;letter-spacing:.3px}
+.hdr-btn{background:transparent;border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.55);font-family:var(--sans);font-size:11px;font-weight:600;padding:5px 12px;border-radius:4px;cursor:pointer;letter-spacing:.3px}
 .hdr-btn:hover{border-color:rgba(255,255,255,.35);color:#fff}
-.hdr-btn-gold{background:var(--gold);color:var(--navy);border:none;font-family:var(--sans);font-size:10px;font-weight:700;padding:5px 12px;border-radius:6px;cursor:pointer}
+.hdr-btn-gold{background:var(--gold);color:var(--navy);border:none;font-family:var(--sans);font-size:11px;font-weight:700;padding:5px 12px;border-radius:4px;cursor:pointer}
 .hdr-btn-gold:hover{background:var(--gold2)}
-.hdr-email{font-size:10px;font-family:var(--mono);color:rgba(255,255,255,.35)}
+.hdr-email{font-size:11px;font-family:var(--mono);color:rgba(255,255,255,.35)}
 
 
-/* ── Multi-project selector ── */
+/*  Multi-project selector  */
 .proj-sel-wrap{position:relative;display:inline-block}
-.proj-sel-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;min-width:220px;max-width:300px;font-family:var(--sans);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;white-space:nowrap;overflow:hidden}
+.proj-sel-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:#fff;padding:5px 10px;border-radius:4px;font-size:12px;font-weight:600;min-width:220px;max-width:300px;font-family:var(--sans);cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;white-space:nowrap;overflow:hidden}
 .proj-sel-btn:hover{border-color:rgba(255,255,255,.35)}
 .proj-sel-btn.active{border-color:var(--gold);background:rgba(184,148,42,.15)}
-.proj-sel-dropdown{position:absolute;top:calc(100% + 4px);right:0;background:#1a2740;border:1px solid rgba(184,148,42,.3);border-radius:8px;min-width:300px;max-width:400px;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}
+.proj-sel-dropdown{position:absolute;top:calc(100% + 4px);right:0;background:#1a2740;border:1px solid rgba(184,148,42,.3);border-radius:4px;min-width:300px;max-width:400px;z-index:1000;box-shadow:0 8px 24px rgba(0,0,0,.4);overflow:hidden}
 .proj-sel-header{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:space-between}
-.proj-sel-header span{font-size:10px;color:rgba(255,255,255,.4);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px}
-.proj-sel-header button{background:transparent;border:none;color:var(--gold);font-size:10px;font-family:var(--sans);font-weight:700;cursor:pointer;padding:2px 6px}
+.proj-sel-header span{font-size:11px;color:rgba(255,255,255,.4);font-family:var(--mono);text-transform:uppercase;letter-spacing:.5px}
+.proj-sel-header button{background:transparent;border:none;color:var(--gold);font-size:11px;font-family:var(--sans);font-weight:700;cursor:pointer;padding:2px 6px}
 .proj-sel-item{padding:8px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:background .1s}
 .proj-sel-item:hover{background:rgba(255,255,255,.06)}
 .proj-sel-item input[type=checkbox]{accent-color:var(--gold);width:14px;height:14px;cursor:pointer;flex-shrink:0}
 .proj-sel-item label{font-size:12px;color:#fff;font-family:var(--sans);cursor:pointer;line-height:1.3}
-.proj-sel-item label span{display:block;font-size:10px;color:rgba(255,255,255,.4);font-family:var(--mono)}
-.proj-sel-badge{background:var(--gold);color:var(--navy);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:800;flex-shrink:0}
-/* ── Tabs ── */
+.proj-sel-item label span{display:block;font-size:11px;color:rgba(255,255,255,.4);font-family:var(--mono)}
+.proj-sel-badge{background:var(--gold);color:var(--navy);border-radius:4px;padding:1px 7px;font-size:11px;font-weight:800;flex-shrink:0}
+/*  Tabs  */
 .tabs-main{display:flex;background:var(--navy);border-bottom:1px solid rgba(184,148,42,.15);padding:0 28px;overflow-x:auto;flex-shrink:0}
 .tabs-sub{display:flex;background:#F8FAFC;border-bottom:1px solid var(--border);padding:0 16px;overflow-x:auto;flex-shrink:0;gap:6px;align-items:center;min-height:40px}
 .tab{padding:13px 16px;font-size:12px;font-weight:600;cursor:pointer;color:rgba(255,255,255,.4);border-bottom:2px solid transparent;white-space:nowrap;letter-spacing:.3px;transition:all .15s;user-select:none}
 .tab:hover{color:rgba(255,255,255,.8)}
 .tab.active{color:#fff;border-bottom-color:var(--gold)}
-.stab{padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--sans);transition:all .15s;white-space:nowrap}
+.stab{padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--sans);transition:all .15s;white-space:nowrap}
 .stab:hover{color:var(--text);border-color:var(--muted)}
 .stab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 .sub-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
 
-/* ── Cards ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 3px rgba(11,22,41,.06)}
+/*  Cards  */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-bottom:16px;box-shadow:none}
 .card-hdr{padding:11px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);background:#FAFBFC;flex-wrap:wrap;gap:8px}
 .card-title{font-size:13px;font-weight:700;color:var(--navy)}
 
-/* ── KPI grids — §11.6 siempre clase CSS, nunca inline gridTemplateColumns ── */
+/*  KPI grids — §11.6 siempre clase CSS, nunca inline gridTemplateColumns  */
 .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
 .kpi-row-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
 .kpi-row-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
 .kpi-row-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
-.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:15px 16px;box-shadow:0 1px 3px rgba(11,22,41,.06)}
-.kpi-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:600}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:15px 16px;box-shadow:none}
+.kpi-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;font-weight:600}
 .kpi-val{font-size:22px;font-weight:800;line-height:1;color:var(--navy)}
 .kpi-sub{font-size:11px;color:var(--muted);margin-top:5px}
 
-/* ── Tables ── */
+/*  Tables  */
 .tbl-wrap{overflow-x:auto;max-height:400px;overflow-y:auto}
 table{width:100%;border-collapse:collapse;font-size:12px}
-th{padding:8px 12px;text-align:left;color:var(--muted);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);background:#FAFBFC;white-space:nowrap}
+th{padding:8px 12px;text-align:left;color:var(--muted);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);background:#FAFBFC;white-space:nowrap}
 td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--text)}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:#F7F9FC}
@@ -294,14 +301,14 @@ tr:hover td{background:#F7F9FC}
 .inline-edit{background:#fff;border:1px solid var(--blue);color:var(--text);padding:3px 6px;border-radius:4px;font-size:11px;font-family:'Courier New',monospace;width:90px}
 .inline-edit:focus{outline:none;box-shadow:0 0 0 2px rgba(35,92,150,.2)}
 
-/* ── Badges / chips / tags ── */
-.chip{display:inline-flex;align-items:center;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+/*  Badges / chips / tags  */
+.chip{display:inline-flex;align-items:center;font-size:11px;padding:2px 7px;border-radius:4px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
 .c-ok{background:#D1FAE5;color:#065F46;border:1px solid #A7F3D0}
 .c-pend{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A}
 .c-apr{background:#DBEAFE;color:#1E40AF;border:1px solid #BFDBFE}
 .c-no{background:#F3F4F6;color:#6B7280;border:1px solid #E5E7EB}
 .c-forecast{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A}
-.tag{font-size:10px;padding:2px 7px;border-radius:6px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.tag{font-size:11px;padding:2px 7px;border-radius:4px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
 .t-blue{background:#DBEAFE;color:#1E40AF}
 .t-orange{background:#FEF3C7;color:#92400E}
 .t-green{background:#D1FAE5;color:#065F46}
@@ -310,126 +317,126 @@ tr:hover td{background:#F7F9FC}
 .t-gray{background:#F3F4F6;color:#6B7280}
 .cg{color:#059669}.cr{color:#DC2626}.cw{color:#D97706}.cb{color:#235C96}
 
-/* ── Buttons ── */
-.btn{background:#235C96;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-family:var(--sans);font-weight:700;cursor:pointer;transition:all .15s}
+/*  Buttons  */
+.btn{background:#235C96;color:#fff;border:none;padding:7px 14px;border-radius:4px;font-size:12px;font-family:var(--sans);font-weight:700;cursor:pointer;transition:all .15s}
 .btn:hover{background:#1a4a7a}
 .btn:disabled{opacity:.45;cursor:not-allowed}
-.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);padding:6px 14px;border-radius:6px;font-size:12px;font-family:var(--sans);font-weight:600;cursor:pointer}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);padding:6px 14px;border-radius:4px;font-size:12px;font-family:var(--sans);font-weight:600;cursor:pointer}
 .btn-ghost:hover{color:var(--text);border-color:var(--muted)}
-.btn-active{background:#235C96;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-family:var(--sans);font-weight:700;cursor:pointer}
+.btn-active{background:#235C96;color:#fff;border:none;padding:6px 14px;border-radius:4px;font-size:12px;font-family:var(--sans);font-weight:700;cursor:pointer}
 
-/* ── Form inputs ── */
-select,input[type=text],input[type=number],input[type=date],input[type=email],input[type=password],textarea{background:#fff;border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:6px;font-size:12px;font-family:var(--sans);width:100%;outline:none;transition:border-color .15s}
+/*  Form inputs  */
+select,input[type=text],input[type=number],input[type=date],input[type=email],input[type=password],textarea{background:#fff;border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:4px;font-size:12px;font-family:var(--sans);width:100%;outline:none;transition:border-color .15s}
 select:focus,input:focus,textarea:focus{border-color:#235C96;box-shadow:0 0 0 3px rgba(35,92,150,.1)}
 textarea{resize:vertical;min-height:60px}
 .form-row{margin-bottom:12px}
-.form-row label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.form-row label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px;font-weight:700}
 
-/* ── Grids de formulario — §11.6 regla obligatoria ── */
+/*  Grids de formulario — §11.6 regla obligatoria  */
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0}
 .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:0}
 
-/* ── Progreso ── */
+/*  Progreso  */
 .prog-wrap{height:5px;background:var(--border);border-radius:3px;overflow:hidden}
 .prog{height:100%;border-radius:3px;transition:width .3s}
 .tbl-foot{padding:10px 16px;background:#FAFBFC;border-top:1px solid var(--border);display:flex;gap:20px;font-size:12px;flex-wrap:wrap;align-items:center}
 
-/* ── Alerts ── */
-.alert{border-radius:8px;padding:10px 14px;font-size:12px;margin-bottom:8px;line-height:1.5}
+/*  Alerts  */
+.alert{border-radius:4px;padding:10px 14px;font-size:12px;margin-bottom:8px;line-height:1.5}
 .alert-ok{background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46}
 .alert-err{background:#FEF2F2;border:1px solid #FECACA;color:#991B1B}
 .alert-warn{background:#FFFBEB;border:1px solid #FDE68A;color:#92400E}
 .alert-info{background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF}
 
-/* ── Modals ── */
+/*  Modals  */
 .overlay{display:none;position:fixed;inset:0;background:rgba(11,22,41,.55);z-index:200;align-items:center;justify-content:center}
 .overlay.open{display:flex}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:26px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(11,22,41,.2)}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:26px;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:none}
 .modal h3{font-size:15px;font-weight:800;color:var(--navy);margin-bottom:18px}
 .modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
 
-/* ── Misc ── */
+/*  Misc  */
 .state-msg{padding:32px;text-align:center;color:var(--muted);font-size:12px}
 .section-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-.reminder-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;white-space:nowrap}
+.reminder-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;white-space:nowrap}
 .r-due{background:#FEE2E2;color:#991B1B;border:1px solid #FECACA}
 .r-soon{background:#FEF3C7;color:#92400E;border:1px solid #FDE68A}
 .r-ok{background:#F3F4F6;color:#6B7280;border:1px solid #E5E7EB}
 
-/* ── Mobile nav bar (reemplaza tabs en mobile) ── */
+/*  Mobile nav bar (reemplaza tabs en mobile)  */
 .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--navy);border-top:1px solid rgba(184,148,42,.2);z-index:100;height:58px}
 .mobile-nav-inner{display:flex;height:100%;overflow-x:auto}
-.mobile-nav-item{flex:1;min-width:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgba(255,255,255,.4);font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono);cursor:pointer;border:none;background:transparent;padding:6px 4px;min-height:44px;transition:color .15s}
+.mobile-nav-item{flex:1;min-width:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgba(255,255,255,.4);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;font-family:var(--mono);cursor:pointer;border:none;background:transparent;padding:6px 4px;min-height:44px;transition:color .15s}
 .mobile-nav-item.active{color:var(--gold)}
-.mobile-nav-item-icon{font-size:16px;line-height:1}
+.mobile-nav-item-icon{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.06em;line-height:1}
 
-/* ── Login — Optical Centering Rule §11.12.3 ── */
+/*  Login — Optical Centering Rule §11.12.3  */
 .login-wrap{min-height:100vh;display:flex;background:var(--navy);position:relative;overflow:hidden}
 .login-overlay{position:absolute;inset:0;z-index:1;background:linear-gradient(135deg,rgba(11,22,41,.92) 0%,rgba(11,22,41,.75) 60%,rgba(11,22,41,.92) 100%)}
 .login-lines{position:absolute;inset:0;z-index:0;background-image:linear-gradient(rgba(184,148,42,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(184,148,42,.04) 1px,transparent 1px);background-size:60px 60px}
 .login-split{position:relative;z-index:2;display:flex;width:100%}
 .login-left{flex:1;display:flex;flex-direction:column;justify-content:center;padding:80px 60px;border-right:1px solid rgba(184,148,42,.15)}
-.login-eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:20px}
+.login-eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;margin-bottom:20px}
 .login-logo-row{display:flex;align-items:center;gap:14px;margin-bottom:20px}
-.login-logo-img{width:50px;height:50px;border-radius:12px;object-fit:cover;border:2px solid rgba(255,255,255,.15)}
+.login-logo-img{width:50px;height:50px;border-radius:4px;object-fit:cover;border:2px solid rgba(255,255,255,.15)}
 .login-title{font-size:50px;font-weight:900;color:#fff;line-height:.95;letter-spacing:-2px}
 .login-title span{color:var(--gold);display:block}
 .login-line{width:48px;height:3px;background:var(--gold);margin:18px 0}
 .login-sub{font-size:13px;color:rgba(255,255,255,.4);line-height:1.7;max-width:300px;font-style:italic}
 .login-right{width:100%;max-width:460px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:60px 40px}
-.login-card{width:min(340px,80vw);max-width:340px;margin:0 auto;background:rgba(255,255,255,.04);border:1px solid rgba(184,148,42,.2);border-radius:16px;padding:36px;backdrop-filter:blur(20px)}
+.login-card{width:min(340px,80vw);max-width:340px;margin:0 auto;background:rgba(255,255,255,.04);border:1px solid rgba(184,148,42,.2);border-radius:4px;padding:36px;backdrop-filter:blur(20px)}
 .login-card-title{font-size:15px;font-weight:700;color:#fff;margin-bottom:4px}
-.login-card-sub{font-family:var(--mono);font-size:10px;color:rgba(255,255,255,.35);letter-spacing:1px;margin-bottom:24px;text-transform:uppercase}
+.login-card-sub{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.35);letter-spacing:1px;margin-bottom:24px;text-transform:uppercase}
 .login-fg{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
-.login-fg label{font-size:9px;color:rgba(255,255,255,.4);letter-spacing:1px;text-transform:uppercase;font-weight:600}
-.login-fg input{border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 13px;font-size:13px;font-family:var(--sans);color:#fff;background:rgba(255,255,255,.06);outline:none;transition:border-color .15s;width:100%}
+.login-fg label{font-size:11px;color:rgba(255,255,255,.4);letter-spacing:1px;text-transform:uppercase;font-weight:600}
+.login-fg input{border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:10px 13px;font-size:13px;font-family:var(--sans);color:#fff;background:rgba(255,255,255,.06);outline:none;transition:border-color .15s;width:100%}
 .login-fg input::placeholder{color:rgba(255,255,255,.2)}
 .login-fg input:focus{border-color:var(--gold);background:rgba(255,255,255,.09)}
-.login-submit{width:100%;padding:11px;margin-top:8px;background:var(--gold);color:var(--navy);border:none;border-radius:8px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;min-height:44px}
+.login-submit{width:100%;padding:11px;margin-top:8px;background:var(--gold);color:var(--navy);border:none;border-radius:4px;font-family:var(--sans);font-size:13px;font-weight:700;cursor:pointer;min-height:44px}
 .login-submit:hover{background:var(--gold2)}
 .login-submit:disabled{opacity:.5;cursor:not-allowed}
-.login-err{background:rgba(239,68,68,.12);color:#FCA5A5;border:1px solid rgba(239,68,68,.25);border-radius:8px;padding:10px 13px;font-size:12px;margin-bottom:12px}
-.login-foot{text-align:center;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.2);margin-top:16px;letter-spacing:1px}
+.login-err{background:rgba(239,68,68,.12);color:#FCA5A5;border:1px solid rgba(239,68,68,.25);border-radius:4px;padding:10px 13px;font-size:12px;margin-bottom:12px}
+.login-foot{text-align:center;font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.2);margin-top:16px;letter-spacing:1px}
 .login-back{text-align:center;margin-top:10px;font-size:11px;color:rgba(255,255,255,.3);cursor:pointer;font-family:var(--mono)}
 .login-back:hover{color:var(--gold)}
 
-/* ══════════════════════════════════════════
+/* 
    RESPONSIVE — ≤768px
    §3.4, §11.6, §11.7, §11.10, §11.12
-   ══════════════════════════════════════════ */
+    */
 @media (max-width: 768px) {
 
-  /* ── Content padding + espacio mobile-nav ── */
+  /*  Content padding + espacio mobile-nav  */
   .main{padding:14px 14px 72px}
 
-  /* ── Header compacto ── */
+  /*  Header compacto  */
   .header{padding:0 14px;height:auto;min-height:54px}
   .hdr-email{display:none}
   .hdr-sel{width:160px;font-size:11px}
 
-  /* ── Tabs principales ocultos → mobile-nav los reemplaza ── */
+  /*  Tabs principales ocultos → mobile-nav los reemplaza  */
   .tabs-main{display:none}
   .mobile-nav{display:block}
 
-  /* ── Sub-tabs scrollables ── */
+  /*  Sub-tabs scrollables  */
   .tabs-sub{padding:0 10px}
 
-  /* ── Grids de formulario: 1 columna ── */
+  /*  Grids de formulario: 1 columna  */
   .two-col{grid-template-columns:1fr}
   .grid-3{grid-template-columns:1fr}
 
-  /* ── KPI grids: 2 columnas ── */
+  /*  KPI grids: 2 columnas  */
   .kpi-row{grid-template-columns:1fr 1fr}
   .kpi-row-4{grid-template-columns:1fr 1fr}
   .kpi-row-3{grid-template-columns:1fr 1fr}
   .kpi-row-2{grid-template-columns:1fr 1fr}
 
-  /* ── Cards: padding reducido ── */
+  /*  Cards: padding reducido  */
   .card-hdr{padding:10px 12px}
   .kpi{padding:12px 14px}
   .kpi-val{font-size:18px}
 
-  /* ── Tap targets mínimos §11.10 ── */
+  /*  Tap targets mínimos §11.10  */
   .btn{min-height:44px}
   .btn-ghost{min-height:44px}
   .btn-active{min-height:44px}
@@ -438,12 +445,12 @@ textarea{resize:vertical;min-height:60px}
   .mobile-nav-item{min-height:44px}
   .login-submit{min-height:48px}
 
-  /* ── Modal footer: botones full-width §11.9 ── */
+  /*  Modal footer: botones full-width §11.9  */
   .modal-footer{flex-direction:column;align-items:stretch}
   .modal-footer .btn{width:100%;justify-content:center;min-height:48px}
   .modal-footer .btn-ghost{width:100%;justify-content:center;min-height:48px}
 
-  /* ── Login: columna única §11.12.3 ── */
+  /*  Login: columna única §11.12.3  */
   .login-split{flex-direction:column}
   .login-left{display:none}
   .login-right{max-width:100%;padding:32px 28px 56px;align-items:flex-start}
@@ -458,7 +465,7 @@ textarea{resize:vertical;min-height:60px}
 }
 `
 
-// ─── LOGIN ────────────────────────────────────────────────────────────────────
+//  LOGIN 
 function LoginPage() {
   const [email, setEmail]     = useState('')
   const [pass, setPass]       = useState('')
@@ -505,11 +512,11 @@ function LoginPage() {
   )
 }
 
-// ─── CONSTANTES CATEGORÍAS ────────────────────────────────────────────────────
+//  CONSTANTES CATEGORÍAS 
 const CATS = ['material','mano_obra','instalacion','consumibles','alquiler','mob_demob']
 const CATS_LABEL = {material:'Material',mano_obra:'Mano de Obra',instalacion:'Instalación',consumibles:'Consumibles',alquiler:'Alquiler',mob_demob:'Mob/Demob'}
 
-// ─── TAB OVERVIEW ─────────────────────────────────────────────────────────────
+//  TAB OVERVIEW 
 function TabOverview({ proyectoIds }) {
   const [items, setItems]           = useState([])
   const [fventa, setFventa]         = useState([])
@@ -555,7 +562,7 @@ function TabOverview({ proyectoIds }) {
   if (loading) return <div className="state-msg">Cargando overview...</div>
   if (error)   return <div className="alert alert-err">Error: {error}</div>
 
-  // ── Cálculos por bloque ────────────────────────────────────────────────────
+  //  Cálculos por bloque 
   const ingreso      = items.reduce((s,i)=>s+(i.precio_cliente||0),0)
   const costoPres    = items.reduce((s,i)=>s+CATS.reduce((sc,cat)=>sc+(i.costos?.[cat]?.pres?.usd||0),0),0)
   const costoReal    = items.reduce((s,i)=>s+CATS.reduce((sc,cat)=>sc+(i.costos_real?.[cat]||0),0),0)
@@ -571,7 +578,7 @@ function TabOverview({ proyectoIds }) {
   const totalOpFcast = opIngresos.filter(r=>r.es_forecast).reduce((s,r)=>s+(r.monto_usd||0),0)
   const resultadoOp  = totalOpIng - totalOpCosto
 
-  // ── Construcción de filas para la pivot ───────────────────────────────────
+  //  Construcción de filas para la pivot 
   // esIngreso = true → valor positivo (entrada de dinero)
   // esIngreso = false/undefined → valor negativo (salida de dinero)
   const buildPivotData = () => {
@@ -754,7 +761,7 @@ function TabOverview({ proyectoIds }) {
   const SectionToggle = ({label, color, open, onToggle, children}) => (
     <div className="card">
       <div className="card-hdr" style={{cursor:'pointer',userSelect:'none'}} onClick={onToggle}>
-        <span className="card-title" style={{color}}>{open?'▼':'▶'} {label}</span>
+        <span className="card-title" style={{color}}>{open?'':''} {label}</span>
       </div>
       {open && <div style={{padding:'14px 16px'}}>{children}</div>}
     </div>
@@ -763,7 +770,7 @@ function TabOverview({ proyectoIds }) {
 
   return (
     <>
-      {/* ── 3 cards resumen por bloque ── */}
+      {/*  3 cards resumen por bloque  */}
       <div className="kpi-row-3" style={{marginBottom:16}}>
 
         {/* Facturables */}
@@ -778,7 +785,7 @@ function TabOverview({ proyectoIds }) {
               <div style={{display:'flex',justifyContent:'space-between',marginBottom:4,fontSize:11}}><span style={{color:'var(--muted)'}}>Cobro</span><span>{cobrado>0?Math.round(cobrado/ingreso*100):0}%</span></div>
               <div className="prog-wrap"><div className="prog" style={{width:ingreso>0?`${Math.min(cobrado/ingreso*100,100)}%`:'0%',background:'#059669'}} /></div>
             </div>
-            {noPlan.length>0&&<div style={{marginTop:4,fontSize:11,color:'#92400E',fontWeight:600}}>⚠ {noPlan.length} costos no planeados: {fmtUSD(noPlan.reduce((s,a)=>s+(a.monto_usd||0),0))}</div>}
+            {noPlan.length>0&&<div style={{marginTop:4,fontSize:11,color:'#92400E',fontWeight:600}}> {noPlan.length} costos no planeados: {fmtUSD(noPlan.reduce((s,a)=>s+(a.monto_usd||0),0))}</div>}
           </div>
         </div>
 
@@ -818,7 +825,7 @@ function TabOverview({ proyectoIds }) {
         </div>
       </div>
 
-      {/* ── Secciones expandibles ── */}
+      {/*  Secciones expandibles  */}
       <SectionToggle label="Facturables — detalle por categoría" color="#1E40AF" open={expandFact} onToggle={()=>setExpandFact(v=>!v)}>
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
           <thead><tr><th style={{padding:'6px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Categoría</th><th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Costo Pres.</th><th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>Costo Real</th><th style={{padding:'6px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,textTransform:'uppercase',borderBottom:'1px solid var(--border)'}}>% del total</th></tr></thead>
@@ -841,7 +848,7 @@ function TabOverview({ proyectoIds }) {
         </table>
         {noPlan.length>0&&(
           <div style={{marginTop:12}}>
-            <div style={{fontSize:11,fontWeight:700,color:'#92400E',marginBottom:6}}>⚠ Costos no planeados</div>
+            <div style={{fontSize:11,fontWeight:700,color:'#92400E',marginBottom:6}}> Costos no planeados</div>
             <table style={{width:'100%',borderCollapse:'collapse',fontSize:11}}>
               <thead><tr><th style={{padding:'4px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,borderBottom:'1px solid var(--border)'}}>OC</th><th style={{padding:'4px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,borderBottom:'1px solid var(--border)'}}>Proveedor</th><th style={{padding:'4px 8px',textAlign:'left',color:'var(--muted)',fontSize:10,borderBottom:'1px solid var(--border)'}}>Ítem</th><th style={{padding:'4px 8px',textAlign:'right',color:'var(--muted)',fontSize:10,borderBottom:'1px solid var(--border)'}}>USD</th></tr></thead>
               <tbody>
@@ -934,7 +941,7 @@ function TabOverview({ proyectoIds }) {
         </div>
       </SectionToggle>
 
-      {/* ── Tabla Pivot ── */}
+      {/*  Tabla Pivot  */}
       <div className="card">
         <div className="card-hdr">
           <span className="card-title">Tabla Pivot</span>
@@ -1054,7 +1061,7 @@ function TabOverview({ proyectoIds }) {
   )
 }
 
-// ─── TAB PRESUPUESTO ──────────────────────────────────────────────────────────
+//  TAB PRESUPUESTO 
 function ModalEditarItem({ item, onClose, onSave }) {
   const initCostos = (costos, tipo) => {
     const result = {}
@@ -1235,7 +1242,7 @@ function TabPresupuesto({ proyecto }) {
     const fecha = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})
     const nombre = (proyecto?.nombre||'proyecto').replace(/\s+/g,'_').replace(/[^a-zA-Z0-9_-]/g,'')
 
-    // ── Helper: header y footer comunes a ambas páginas ──────────────────────
+    //  Helper: header y footer comunes a ambas páginas 
     const drawPageChrome = (pageTitle, pageNum) => {
       doc.setFillColor(NAVY); doc.rect(0, 0, W, 18, 'F')
       doc.setFillColor(GOLD); doc.rect(0, 18, W, 1.2, 'F')
@@ -1253,16 +1260,16 @@ function TabPresupuesto({ proyecto }) {
       doc.text('Pág. '+pageNum+'  ·  Generado: '+fecha, W-10, H-4, {align:'right'})
     }
 
-    // ════════════════════════════════════════════════════════════════════════
+    // 
     // PÁGINA 1 — Resumen por ítem
-    // ════════════════════════════════════════════════════════════════════════
+    // 
     drawPageChrome('FACTURABLES — PRESUPUESTO VS REAL', '1 / 2')
 
     const totalCmPres = totalPrecio>0&&totalCostoPres>0 ? (totalPrecio-totalCostoPres)/totalPrecio*100 : null
     const totalCmReal = totalPrecio>0&&totalCostoReal>0 ? (totalPrecio-totalCostoReal)/totalPrecio*100 : null
     const totalDelta  = totalCmPres!=null&&totalCmReal!=null ? totalCmReal-totalCmPres : null
 
-    // ── KPI row ──────────────────────────────────────────────────────────────
+    //  KPI row 
     const kpis = [
       {label:'Ingreso cotizado',     val:fU(totalPrecio),          sub:'Precio de venta al cliente', color:BLUE},
       {label:'Costo presupuestado',  val:fU(totalCostoPres),       sub:'CM pres. '+fP(totalCmPres),  color:NAVY},
@@ -1284,13 +1291,13 @@ function TabPresupuesto({ proyecto }) {
       doc.text(k.sub, x+4, 41)
     })
 
-    // ── Section label ─────────────────────────────────────────────────────
+    //  Section label 
     doc.setFontSize(7.5); doc.setFont('helvetica','bold'); doc.setTextColor(NAVY)
     doc.text('RESUMEN POR ÍTEM', 10, 51)
     doc.setDrawColor(BORDER); doc.setLineWidth(0.4)
     doc.line(10, 52.5, W-10, 52.5)
 
-    // ── Tabla pág.1 — columnas: Desc | Precio | C.Pres | C.Real | Var$ | CM Pres | CM Real | Delta CM
+    //  Tabla pág.1 — columnas: Desc | Precio | C.Pres | C.Real | Var$ | CM Pres | CM Real | Delta CM
     // total ancho disponible = 277mm
     const C1 = [139, 22, 22, 22, 18, 18, 18, 18]  // 277mm total
     const sX = 10
@@ -1390,9 +1397,9 @@ function TabPresupuesto({ proyecto }) {
       doc.setFont('helvetica','normal'); doc.setTextColor(MUTED); doc.text(v, 36, y); y+=4.5
     })
 
-    // ════════════════════════════════════════════════════════════════════════
+    // 
     // PÁGINA 2 — Breakdown por categoría
-    // ════════════════════════════════════════════════════════════════════════
+    // 
     doc.addPage()
     drawPageChrome('FACTURABLES — DESGLOSE POR CATEGORÍA', '2 / 2')
 
@@ -1596,7 +1603,7 @@ function TabPresupuesto({ proyecto }) {
   )
 }
 
-// ─── MODAL ALOCAR ─────────────────────────────────────────────────────────────
+//  MODAL ALOCAR 
 function ModalAlocar({ oc, proyecto, onClose }) {
   const [items, setItems]     = useState([])
   const [alocaciones, setAloc] = useState([])
@@ -1662,7 +1669,7 @@ function ModalAlocar({ oc, proyecto, onClose }) {
                   <tr key={a.id}>
                     <td style={{padding:'6px 8px',fontSize:12}}>{a.cpt_items_proyecto?.descripcion}</td>
                     <td style={{padding:'6px 8px'}}><span className={`tag t-${a.categoria==='material'?'blue':a.categoria==='mano_obra'?'orange':'green'}`}>{CATS_LABEL[a.categoria]}</span></td>
-                    <td style={{padding:'6px 8px'}}><span style={{fontSize:10,padding:'2px 6px',borderRadius:8,fontWeight:600,background:a.planificacion==='no_planeado'?'#FEF3C7':'#F3F4F6',color:a.planificacion==='no_planeado'?'#92400E':'#6B7280'}}>{a.planificacion==='no_planeado'?'⚠ No planeado':'✓ Planeado'}</span></td>
+                    <td style={{padding:'6px 8px'}}><span style={{fontSize:10,padding:'2px 6px',borderRadius:8,fontWeight:600,background:a.planificacion==='no_planeado'?'#FEF3C7':'#F3F4F6',color:a.planificacion==='no_planeado'?'#92400E':'#6B7280'}}>{a.planificacion==='no_planeado'?' No planeado':'✓ Planeado'}</span></td>
                     <td style={{padding:'6px 8px',textAlign:'right',fontFamily:'Courier New',fontWeight:700,color:'#059669'}}>{fmtUSD(a.monto_usd)}</td>
                     <td style={{padding:'4px'}}><button onClick={()=>handleDelete(a.id)} style={{background:'none',border:'none',color:'#DC2626',cursor:'pointer',fontSize:12}}>✕</button></td>
                   </tr>
@@ -1680,7 +1687,7 @@ function ModalAlocar({ oc, proyecto, onClose }) {
             </div>
             <div className="two-col">
               <div className="form-row"><label>Monto USD *</label><input required type="number" step="0.01" value={form.monto_usd} onChange={e=>setForm(f=>({...f,monto_usd:e.target.value}))} placeholder={`máx. ${fmtUSD(saldo)}`} /></div>
-              <div className="form-row"><label>Planificación</label><select value={form.planificacion} onChange={e=>setForm(f=>({...f,planificacion:e.target.value}))}><option value="planeado">✓ Planeado</option><option value="no_planeado">⚠ No planeado</option></select></div>
+              <div className="form-row"><label>Planificación</label><select value={form.planificacion} onChange={e=>setForm(f=>({...f,planificacion:e.target.value}))}><option value="planeado">✓ Planeado</option><option value="no_planeado"> No planeado</option></select></div>
             </div>
             <div className="form-row"><label>Notas</label><input value={form.notas} onChange={e=>setForm(f=>({...f,notas:e.target.value}))} placeholder="Opcional" /></div>
             <div className="modal-footer">
@@ -1696,7 +1703,7 @@ function ModalAlocar({ oc, proyecto, onClose }) {
   )
 }
 
-// ─── MODAL NUEVA OC (con PDF parser) ─────────────────────────────────────────
+//  MODAL NUEVA OC (con PDF parser) 
 function ModalNuevaOC({ categorias, form, setForm, saving, onClose, onSubmit }) {
   const [parsing, setParsing]   = useState(false)
   const [parseMsg, setParseMsg] = useState('')
@@ -1734,7 +1741,7 @@ function ModalNuevaOC({ categorias, form, setForm, saving, onClose, onSubmit }) 
       <div className="modal" style={{width:560}}>
         <h3>Nueva Orden de Compra</h3>
         <div style={{background:'#EFF6FF',border:'1px dashed #93C5FD',borderRadius:8,padding:'12px 16px',marginBottom:16,display:'flex',alignItems:'center',gap:12}}>
-          <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:'#1E40AF',marginBottom:2}}>📎 Subir PDF de OC</div><div style={{fontSize:11,color:'#6381A7'}}>Pre-llena los campos automáticamente</div></div>
+          <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:'#1E40AF',marginBottom:2}}> Subir PDF de OC</div><div style={{fontSize:11,color:'#6381A7'}}>Pre-llena los campos automáticamente</div></div>
           <label style={{background:parsing?'#9CA3AF':'#235C96',color:'#fff',border:'none',padding:'6px 14px',borderRadius:6,fontSize:11,fontWeight:700,cursor:parsing?'not-allowed':'pointer',whiteSpace:'nowrap'}}>
             {parsing?'Leyendo...':'Seleccionar PDF'}<input type="file" accept=".pdf" onChange={handlePDF} disabled={parsing} style={{display:'none'}} />
           </label>
@@ -1755,7 +1762,7 @@ function ModalNuevaOC({ categorias, form, setForm, saving, onClose, onSubmit }) 
   )
 }
 
-// ─── MODAL EDITAR OC (Facturables) ───────────────────────────────────────────
+//  MODAL EDITAR OC (Facturables) 
 function ModalEditarOC({ oc, categorias, onClose, onSave, onDelete }) {
   const [form, setForm] = useState({
     numero_oc:   oc.numero_oc||'',
@@ -1802,7 +1809,7 @@ function ModalEditarOC({ oc, categorias, onClose, onSave, onDelete }) {
           </div>
           <div className="form-row"><label>Fecha emisión</label><input type="date" value={form.fecha_emision} onChange={e=>setForm(f=>({...f,fecha_emision:e.target.value}))} /></div>
           <div className="modal-footer" style={{justifyContent:'space-between'}}>
-            <button type="button" onClick={onDelete} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}>🗑 Eliminar OC</button>
+            <button type="button" onClick={onDelete} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}> Eliminar OC</button>
             <div style={{display:'flex',gap:8}}>
               <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
               <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
@@ -1814,7 +1821,7 @@ function ModalEditarOC({ oc, categorias, onClose, onSave, onDelete }) {
   )
 }
 
-// ─── SUB TAB OC (Facturables) ─────────────────────────────────────────────────
+//  SUB TAB OC (Facturables) 
 function SubTabOC({ proyecto }) {
   const [ocs, setOcs]               = useState([])
   const [categorias, setCategorias] = useState([])
@@ -1929,7 +1936,7 @@ function SubTabOC({ proyecto }) {
   )
 }
 
-// ─── SUB TAB FACTURAS COMPRA ──────────────────────────────────────────────────
+//  SUB TAB FACTURAS COMPRA 
 function SubTabFacturasCompra({ proyecto }) {
   const [fcompra, setFcompra]   = useState([])
   const [ocs, setOcs]           = useState([])
@@ -1996,12 +2003,12 @@ function SubTabFacturasCompra({ proyecto }) {
   }
 
   const ocSel = formC.oc_id?ocSaldos[formC.oc_id]:null
-  // ── Alarma duplicado: facturas ya cargadas para la misma OC ───────────────
+  //  Alarma duplicado: facturas ya cargadas para la misma OC 
   const facturasParaOCSel = formC.oc_id
     ? fcompra.filter(f => f.oc_id === formC.oc_id)
     : []
   const CHIPFC={pagada:'c-ok',pendiente_pago:'c-apr',vencida:'c-pend'}
-  // ── Mapa de OCs con más de 1 factura (para badge en tabla) ────────────────
+  //  Mapa de OCs con más de 1 factura (para badge en tabla) 
   const ocCountMap = {}
   for (const f of fcompra) { if (f.oc_id) ocCountMap[f.oc_id] = (ocCountMap[f.oc_id]||0)+1 }
 
@@ -2026,7 +2033,7 @@ function SubTabFacturasCompra({ proyecto }) {
                       <span className="mono cb">{f.cpt_oc?.numero_oc}</span>
                       {f.oc_id&&ocCountMap[f.oc_id]>1&&(
                         <span title={`Esta OC tiene ${ocCountMap[f.oc_id]} facturas cargadas`} style={{display:'inline-flex',alignItems:'center',background:'#FEF3C7',border:'1px solid #FDE68A',color:'#92400E',borderRadius:8,padding:'1px 6px',fontSize:10,fontWeight:700,cursor:'default',whiteSpace:'nowrap'}}>
-                          ⚠ ×{ocCountMap[f.oc_id]}
+                           ×{ocCountMap[f.oc_id]}
                         </span>
                       )}
                     </div>
@@ -2057,7 +2064,7 @@ function SubTabFacturasCompra({ proyecto }) {
               {ocSel&&<div className="alert alert-info" style={{marginBottom:12}}>Saldo disponible: <strong>{fmtUSD(ocSel.saldo_usd)} USD</strong></div>}
               {facturasParaOCSel.length>0&&(
                 <div className="alert alert-warn" style={{marginBottom:12}}>
-                  <strong>⚠ Atención — OC ya facturada {facturasParaOCSel.length} vez{facturasParaOCSel.length>1?'es':''}</strong>
+                  <strong> Atención — OC ya facturada {facturasParaOCSel.length} vez{facturasParaOCSel.length>1?'es':''}</strong>
                   <div style={{marginTop:6,display:'flex',flexDirection:'column',gap:3}}>
                     {facturasParaOCSel.map(f=>(
                       <div key={f.id} style={{fontSize:11,display:'flex',gap:8,alignItems:'center'}}>
@@ -2094,7 +2101,7 @@ function SubTabFacturasCompra({ proyecto }) {
               <div className="two-col"><div className="form-row"><label>Fecha</label><input type="date" value={modalEditar.fecha_factura||''} onChange={e=>setModalEditar(f=>({...f,fecha_factura:e.target.value}))} /></div><div className="form-row"><label>Vto. pago</label><input type="date" value={modalEditar.fecha_vto_pago||''} onChange={e=>setModalEditar(f=>({...f,fecha_vto_pago:e.target.value}))} /></div></div>
               <div className="two-col"><div className="form-row"><label>Estado</label><select value={modalEditar.estado||'pendiente_pago'} onChange={e=>setModalEditar(f=>({...f,estado:e.target.value}))}><option value="pendiente_pago">Pendiente pago</option><option value="pagada">Pagada</option><option value="vencida">Vencida</option></select></div></div>
               <div className="modal-footer" style={{justifyContent:'space-between'}}>
-                <button type="button" onClick={()=>handleDeleteFC(modalEditar.id)} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}>🗑 Eliminar</button>
+                <button type="button" onClick={()=>handleDeleteFC(modalEditar.id)} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}> Eliminar</button>
                 <div style={{display:'flex',gap:8}}>
                   <button type="button" className="btn-ghost" onClick={()=>setModalEditar(null)}>Cancelar</button>
                   <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
@@ -2108,7 +2115,7 @@ function SubTabFacturasCompra({ proyecto }) {
   )
 }
 
-// ─── TAB COSTOS (Facturables) ─────────────────────────────────────────────────
+//  TAB COSTOS (Facturables) 
 function TabCostos({ proyecto }) {
   const [subTab, setSubTab] = useState('oc')
   return (
@@ -2123,7 +2130,7 @@ function TabCostos({ proyecto }) {
   )
 }
 
-// ─── TAB INGRESOS (Facturables) ───────────────────────────────────────────────
+//  TAB INGRESOS (Facturables) 
 function SubTabFacturasVenta({ proyecto }) {
   const [fventa, setFventa]   = useState([])
   const [loading, setLoading] = useState(true)
@@ -2255,7 +2262,7 @@ function SubTabFacturasVenta({ proyecto }) {
               <div className="form-row"><label>Estado</label><select value={modalEditar.estado||'emitida'} onChange={e=>setModalEditar(f=>({...f,estado:e.target.value}))}><option value="no_emitida">No emitida</option><option value="emitida">Emitida</option><option value="cobro_parcial">Cobro parcial</option><option value="cobrada">Cobrada</option></select></div>
               <div className="form-row"><label>Notas</label><textarea value={modalEditar.notas||''} onChange={e=>setModalEditar(f=>({...f,notas:e.target.value}))} /></div>
               <div className="modal-footer" style={{justifyContent:'space-between'}}>
-                <button type="button" onClick={()=>handleDeleteFV(modalEditar.id)} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}>🗑 Eliminar</button>
+                <button type="button" onClick={()=>handleDeleteFV(modalEditar.id)} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}> Eliminar</button>
                 <div style={{display:'flex',gap:8}}>
                   <button type="button" className="btn-ghost" onClick={()=>setModalEditar(null)}>Cancelar</button>
                   <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
@@ -2326,7 +2333,7 @@ function MargenSimple({ proyecto }) {
   )
 }
 
-// ─── TAB CASHFLOW ─────────────────────────────────────────────────────────────
+//  TAB CASHFLOW 
 function TabCashflow({ proyecto }) {
   const [eventos, setEventos] = useState([])
   const [loading, setLoading] = useState(true)
@@ -2380,7 +2387,7 @@ function TabCashflow({ proyecto }) {
                       <td style={{fontWeight:500}}>{e.contraparte}</td>
                       <td className="mono" style={{color:'var(--muted)'}}>{e.referencia||'—'}</td>
                       <td className={`mono ${e.tipo==='ingreso'?'cg':'cr'}`}>{e.tipo==='ingreso'?'+':''}{fmtUSD(Number(e.monto_usd))}</td>
-                      <td><span style={{fontSize:10,color:e.categoria_cf==='real'?'#059669':'#D97706',fontWeight:700,textTransform:'uppercase'}}>{e.categoria_cf==='real'?'● Real':'◌ Forecast'}</span></td>
+                      <td><span style={{fontSize:10,color:e.categoria_cf==='real'?'#059669':'#D97706',fontWeight:700,textTransform:'uppercase'}}>{e.categoria_cf==='real'?' Real':'◌ Forecast'}</span></td>
                       <td className={`mono ${e.acum>=0?'cg':'cr'}`}>{e.acum>=0?'+':''}{fmtUSD(e.acum)}</td>
                     </tr>
                   ))}
@@ -2393,7 +2400,7 @@ function TabCashflow({ proyecto }) {
   )
 }
 
-// ─── MODAL EDITAR OC NF ───────────────────────────────────────────────────────
+//  MODAL EDITAR OC NF 
 function ModalEditarOCNF({ oc, zonas, onClose, onSave, onDelete }) {
   const [form, setForm] = useState({
     numero_oc: oc.numero_oc||'', proveedor: oc.proveedor||'', cuit_proveedor: oc.cuit_proveedor||'',
@@ -2421,7 +2428,7 @@ function ModalEditarOCNF({ oc, zonas, onClose, onSave, onDelete }) {
           <div className="two-col"><div className="form-row"><label>Monto s/IVA ({form.moneda}) *</label><input required type="number" step="0.01" value={form.monto_sin_iva} onChange={e=>setForm(f=>({...f,monto_sin_iva:e.target.value}))} /></div><div className="form-row"><label>IVA %</label><select value={form.iva_pct} onChange={e=>setForm(f=>({...f,iva_pct:e.target.value}))}><option value="21">21%</option><option value="10.5">10.5%</option><option value="0">0%</option></select></div></div>
           <div className="form-row"><label>Fecha emisión</label><input type="date" value={form.fecha_emision} onChange={e=>setForm(f=>({...f,fecha_emision:e.target.value}))} /></div>
           <div className="modal-footer" style={{justifyContent:'space-between'}}>
-            <button type="button" onClick={onDelete} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}>🗑 Eliminar OC</button>
+            <button type="button" onClick={onDelete} style={{background:'#FEF2F2',border:'1px solid #FECACA',color:'#DC2626',padding:'6px 14px',borderRadius:6,fontSize:12,fontWeight:600,cursor:'pointer'}}> Eliminar OC</button>
             <div style={{display:'flex',gap:8}}>
               <button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button>
               <button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar cambios'}</button>
@@ -2433,7 +2440,7 @@ function ModalEditarOCNF({ oc, zonas, onClose, onSave, onDelete }) {
   )
 }
 
-// ─── NO FACTURABLES ───────────────────────────────────────────────────────────
+//  NO FACTURABLES 
 function SubTabPrepBarco({ proyecto }) {
   const [ocs, setOcs]           = useState([])
   const [zonas, setZonas]       = useState([])
@@ -2473,7 +2480,7 @@ function SubTabPrepBarco({ proyecto }) {
         <div className="kpi"><div className="kpi-lbl">Zonas activas</div><div className="kpi-val cg">{zonas.length}</div><div className="kpi-sub">{zonas.map(z=>z.nombre).join(' · ')||'Sin zonas'}</div></div>
         <div className="kpi"><div className="kpi-lbl">Sin zona asignada</div><div className="kpi-val" style={{color:sinZona.length>0?'var(--r)':'var(--g)'}}>{sinZona.length}</div><div className="kpi-sub">{sinZona.length>0?'Pendientes':'Todas clasificadas ✓'}</div></div>
       </div>
-      {sinZona.length>0&&<div className="alert alert-warn">⚠ {sinZona.length} OC sin zona — {fmtUSD(sinZona.reduce((s,o)=>s+(o.monto_usd_con_iva||0),0))} USD c/IVA sin clasificar</div>}
+      {sinZona.length>0&&<div className="alert alert-warn"> {sinZona.length} OC sin zona — {fmtUSD(sinZona.reduce((s,o)=>s+(o.monto_usd_con_iva||0),0))} USD c/IVA sin clasificar</div>}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16}}>
         <div className="card" style={{marginBottom:0}}>
           <div className="card-hdr"><span className="card-title">Costo por zona (USD c/IVA)</span></div>
@@ -2580,7 +2587,7 @@ function SubTabPrepBarco({ proyecto }) {
   )
 }
 
-// ─── SUB TAB OC NO FACTURABLES ────────────────────────────────────────────────
+//  SUB TAB OC NO FACTURABLES 
 function SubTabOCNoFact({ proyecto }) {
   const [subTab2, setSubTab2]   = useState('oc')
   const [ocs, setOcs]           = useState([])
@@ -2649,7 +2656,7 @@ function SubTabOCNoFact({ proyecto }) {
     return o.moneda==='ARS'?`$${Number(val).toLocaleString('es-AR')}`:fmtUSD(val)
   }
 
-  // ── Alarma duplicado NF: facturas ya cargadas para la misma OC NF ─────────
+  //  Alarma duplicado NF: facturas ya cargadas para la misma OC NF 
   const facturasParaOCNFSel = formF.oc_nf_id
     ? facturas.filter(f => f.oc_nf_id === formF.oc_nf_id)
     : []
@@ -2680,7 +2687,7 @@ function SubTabOCNoFact({ proyecto }) {
                           <td className="mono">
                             <div style={{display:'flex',alignItems:'center',gap:5}}>
                               <span className="cb">{o.numero_oc}</span>
-                              {isDup&&<span title="Número de OC duplicado" style={{display:'inline-flex',alignItems:'center',background:'#FEF3C7',border:'1px solid #FDE68A',color:'#92400E',borderRadius:8,padding:'1px 6px',fontSize:10,fontWeight:700,cursor:'default',whiteSpace:'nowrap'}}>⚠ DUP</span>}
+                              {isDup&&<span title="Número de OC duplicado" style={{display:'inline-flex',alignItems:'center',background:'#FEF3C7',border:'1px solid #FDE68A',color:'#92400E',borderRadius:8,padding:'1px 6px',fontSize:10,fontWeight:700,cursor:'default',whiteSpace:'nowrap'}}> DUP</span>}
                             </div>
                           </td>
                           <td style={{fontWeight:600}}>{o.proveedor}</td>
@@ -2711,7 +2718,7 @@ function SubTabOCNoFact({ proyecto }) {
               <div className="modal" style={{width:560}}>
                 <h3>Nueva OC — No Facturable</h3>
                 <form onSubmit={handleSaveOC}>
-                  <div className="two-col"><div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} style={ocs.some(o=>o.numero_oc===form.numero_oc&&form.numero_oc!=='')?{borderColor:'#D97706',background:'#FFFBEB'}:{}} />{ocs.some(o=>o.numero_oc===form.numero_oc&&form.numero_oc!=='')&&(<div style={{fontSize:11,color:'#92400E',fontWeight:600,marginTop:4}}>⚠ Ya existe una OC con este número — verificá que no sea un duplicado.</div>)}</div><div className="form-row"><label>Proveedor *</label><input required value={form.proveedor} onChange={e=>setForm(f=>({...f,proveedor:e.target.value}))} /></div></div>
+                  <div className="two-col"><div className="form-row"><label>Número OC *</label><input required value={form.numero_oc} onChange={e=>setForm(f=>({...f,numero_oc:e.target.value}))} style={ocs.some(o=>o.numero_oc===form.numero_oc&&form.numero_oc!=='')?{borderColor:'#D97706',background:'#FFFBEB'}:{}} />{ocs.some(o=>o.numero_oc===form.numero_oc&&form.numero_oc!=='')&&(<div style={{fontSize:11,color:'#92400E',fontWeight:600,marginTop:4}}> Ya existe una OC con este número — verificá que no sea un duplicado.</div>)}</div><div className="form-row"><label>Proveedor *</label><input required value={form.proveedor} onChange={e=>setForm(f=>({...f,proveedor:e.target.value}))} /></div></div>
                   <div className="form-row"><label>CUIT</label><input value={form.cuit_proveedor} onChange={e=>setForm(f=>({...f,cuit_proveedor:e.target.value.replace(/\D/g,"")}))} inputMode="numeric" maxLength={11} placeholder="ej. 30707337369" /></div>
                   <div className="two-col"><div className="form-row"><label>Zona</label><select value={form.zona_id} onChange={e=>setForm(f=>({...f,zona_id:e.target.value}))}><option value="">Sin zona</option>{zonas.map(z=><option key={z.id} value={z.id}>{z.nombre}</option>)}</select></div><div className="form-row"><label>Estado</label><select value={form.estado} onChange={e=>setForm(f=>({...f,estado:e.target.value}))}><option value="pendiente_aprobacion">Pend. aprobación</option><option value="aprobada">Aprobada</option><option value="activa">Activa</option><option value="completada">Completada</option></select></div></div>
                   <div className="form-row"><label>Descripción</label><input value={form.descripcion} onChange={e=>setForm(f=>({...f,descripcion:e.target.value}))} /></div>
@@ -2776,7 +2783,7 @@ function SubTabOCNoFact({ proyecto }) {
                               <span className="mono cb">{f.cpt_oc_nf?.numero_oc||'—'}</span>
                               {f.oc_nf_id&&nfCountMap[f.oc_nf_id]>1&&(
                                 <span title={`Esta OC tiene ${nfCountMap[f.oc_nf_id]} facturas cargadas`} style={{display:'inline-flex',alignItems:'center',background:'#FEF3C7',border:'1px solid #FDE68A',color:'#92400E',borderRadius:8,padding:'1px 6px',fontSize:10,fontWeight:700,cursor:'default',whiteSpace:'nowrap'}}>
-                                  ⚠ ×{nfCountMap[f.oc_nf_id]}
+                                   ×{nfCountMap[f.oc_nf_id]}
                                 </span>
                               )}
                             </div>
@@ -2805,7 +2812,7 @@ function SubTabOCNoFact({ proyecto }) {
                   <div className="two-col"><div className="form-row"><label>Número *</label><input required value={formF.numero_factura} onChange={e=>setFormF(f=>({...f,numero_factura:e.target.value}))} /></div><div className="form-row"><label>OC vinculada</label><select value={formF.oc_nf_id} onChange={e=>{const oc=ocs.find(o=>o.id===e.target.value);setFormF(f=>({...f,oc_nf_id:e.target.value,proveedor:oc?.proveedor||f.proveedor}))}}><option value="">Sin OC</option>{ocs.map(o=><option key={o.id} value={o.id}>{o.numero_oc} – {o.proveedor}</option>)}</select></div></div>
                   {facturasParaOCNFSel.length>0&&(
                     <div className="alert alert-warn" style={{marginBottom:12}}>
-                      <strong>⚠ Atención — OC ya facturada {facturasParaOCNFSel.length} vez{facturasParaOCNFSel.length>1?'es':''}</strong>
+                      <strong> Atención — OC ya facturada {facturasParaOCNFSel.length} vez{facturasParaOCNFSel.length>1?'es':''}</strong>
                       <div style={{marginTop:6,display:'flex',flexDirection:'column',gap:3}}>
                         {facturasParaOCNFSel.map(f=>{
                           const sinIvaUSD=f.moneda==='ARS'&&f.fx?f.monto_sin_iva/f.fx:f.monto_sin_iva
@@ -2842,7 +2849,7 @@ function SubTabOCNoFact({ proyecto }) {
   )
 }
 
-// ─── TAB OPERACIÓN ────────────────────────────────────────────────────────────
+//  TAB OPERACIÓN 
 function ModalOpRegistro({ titulo, cats, form, setForm, saving, onClose, onSubmit, esIngreso }) {
   return (
     <div className="overlay open" onClick={e=>e.target===e.currentTarget&&onClose()}>
@@ -2861,7 +2868,7 @@ function ModalOpRegistro({ titulo, cats, form, setForm, saving, onClose, onSubmi
           <div className="form-row"><label>Monto ({form.moneda}) *</label><input required type="number" step="0.01" value={form.monto} onChange={e=>setForm(f=>({...f,monto:e.target.value}))} placeholder="0.00" /></div>
           {form.moneda==='ARS'&&form.monto&&form.fx&&<div className="alert alert-info" style={{marginBottom:12}}>USD equiv.: <strong>{fmtUSD(Number(form.monto)/Number(form.fx))}</strong></div>}
           {esIngreso&&(
-            <div className="form-row"><label>Estado</label><select value={String(form.es_forecast)} onChange={e=>setForm(f=>({...f,es_forecast:e.target.value==='true'}))}><option value="false">● Confirmado</option><option value="true">◌ Forecast</option></select></div>
+            <div className="form-row"><label>Estado</label><select value={String(form.es_forecast)} onChange={e=>setForm(f=>({...f,es_forecast:e.target.value==='true'}))}><option value="false"> Confirmado</option><option value="true">◌ Forecast</option></select></div>
           )}
           <div className="form-row"><label>Notas</label><input value={form.notas} onChange={e=>setForm(f=>({...f,notas:e.target.value}))} placeholder="Opcional" /></div>
           <div className="modal-footer"><button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button><button type="submit" className="btn" disabled={saving}>{saving?'Guardando...':'Guardar'}</button></div>
@@ -3165,7 +3172,7 @@ function SubTabOpIngresos({ proyecto }) {
   )
 }
 
-// ─── SUB TAB PRESUPUESTO OPERATIVO ────────────────────────────────────────────
+//  SUB TAB PRESUPUESTO OPERATIVO 
 function SubTabOpPresupuesto({ proyecto }) {
   const [presupuesto, setPresupuesto] = useState([])
   const [costos, setCostos]           = useState([])
@@ -3289,7 +3296,7 @@ function SubTabOpPresupuesto({ proyecto }) {
   )
 }
 
-// ─── TAB CATEGORIAS ───────────────────────────────────────────────────────────
+//  TAB CATEGORIAS 
 function TabCategorias() {
   const [cats, setCats]       = useState([])
   const [loading, setLoading] = useState(true)
@@ -3387,7 +3394,7 @@ function TabCategorias() {
   )
 }
 
-// ─── MULTI-PROJECT SELECTOR ───────────────────────────────────────────────────
+//  MULTI-PROJECT SELECTOR 
 function ProyectoMultiSelector({ proyectos, selectedIds, onChange }) {
   const [open, setOpen] = useState(false)
 
@@ -3423,7 +3430,7 @@ function ProyectoMultiSelector({ proyectos, selectedIds, onChange }) {
       <button className={`proj-sel-btn${open?' active':''}`} onClick={()=>setOpen(v=>!v)}>
         <span style={{overflow:'hidden',textOverflow:'ellipsis'}}>{label}</span>
         {selectedIds.length > 0 && <span className="proj-sel-badge">{selectedIds.length}</span>}
-        <span style={{fontSize:9,opacity:.6,flexShrink:0}}>{open?'▲':'▼'}</span>
+        <span style={{fontSize:9,opacity:.6,flexShrink:0}}>{open?'':''}</span>
       </button>
       {open && (
         <div className="proj-sel-dropdown">
@@ -3449,7 +3456,7 @@ function ProyectoMultiSelector({ proyectos, selectedIds, onChange }) {
   )
 }
 
-// ─── COST TRACKER APP ─────────────────────────────────────────────────────────
+//  COST TRACKER APP 
 function CostTrackerApp({ session }) {
   const [mainTab, setMainTab]         = useState('overview')
   const [subTab, setSubTab]           = useState(null)
@@ -3596,13 +3603,13 @@ function CostTrackerApp({ session }) {
           }
         </div>
 
-        {/* ── Mobile Nav Bar ── */}
+        {/*  Mobile Nav Bar  */}
         <nav className="mobile-nav">
           <div className="mobile-nav-inner">
             {MAIN_TABS.map(t=>(
               <button key={t.id} className={`mobile-nav-item${mainTab===t.id?' active':''}`} onClick={()=>selectMainTab(t.id)}>
                 <span className="mobile-nav-item-icon">
-                  {t.id==='overview'?'📊':t.id==='facturables'?'📋':t.id==='nofacturables'?'🚢':t.id==='operacion'?'⚙️':t.id==='cashflow'?'💰':'🏷️'}
+                  {t.id==='overview'?'KPI':t.id==='facturables'?'FAC':t.id==='nofacturables'?'NOF':t.id==='operacion'?'OPS':t.id==='cashflow'?'CFL':'TAG'}
                 </span>
                 {t.label.length>8?t.label.slice(0,7)+'…':t.label}
               </button>
@@ -3636,7 +3643,7 @@ function CostTrackerApp({ session }) {
   )
 }
 
-// ─── APP ROOT ─────────────────────────────────────────────────────────────────
+//  APP ROOT 
 export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
